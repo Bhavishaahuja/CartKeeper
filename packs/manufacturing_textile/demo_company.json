@@ -1,0 +1,15 @@
+{
+  "name": "Demo Textile Mill",
+  "budgets": {
+    "line_1": 2500,
+    "line_2": 3000,
+    "line_3": 2000,
+    "general": 1500
+  },
+  "members": [
+    {"user_id": "u-tech-1",  "name": "Ravi (technician)",          "role": "requester"},
+    {"user_id": "u-mm-1",    "name": "Priya (maintenance manager)", "role": "maintenance_manager"},
+    {"user_id": "u-owner-1", "name": "Mr. Ahuja (owner)",           "role": "owner"},
+    {"user_id": "u-fin-1",   "name": "Anil (finance)",              "role": "finance"}
+  ]
+}

@@ -19,6 +19,10 @@ PACKS_DIR = Path(__file__).resolve().parents[2] / "packs"
 # Hooks the core knows how to run. A pack may only reference these.
 KNOWN_HOOKS = {"pre_search": {"machine_compatibility"}}
 
+# How a request maps to a budget bucket. A pack picks one; the core never asks which industry it is.
+GENERAL_SCOPE = "general"  # bucket for requests that don't name a machine
+KNOWN_BUDGET_SCOPES = {"production_line", "company"}
+
 WEIGHT_TOLERANCE = 1e-6
 
 
@@ -69,7 +73,7 @@ class ScoringWeights(_Strict):
 class PackConfig(_Strict):
     name: str
     currency: Literal["usd"]
-    budget_scope: str
+    budget_scope: Literal[tuple(KNOWN_BUDGET_SCOPES)]
     urgency_levels: dict[str, UrgencyLevel] = Field(min_length=1)
     approval_rules: list[ApprovalRule] = Field(min_length=1)
     policy: Policy
@@ -126,6 +130,18 @@ class InventoryEntry(_Strict):
     location: str
 
 
+class Member(_Strict):
+    user_id: str
+    name: str
+    role: str
+
+
+class DemoCompany(_Strict):
+    name: str
+    budgets: dict[str, float]
+    members: list[Member]
+
+
 class Machine(_Strict):
     machine_id: str
     type: str
@@ -141,6 +157,7 @@ class Pack(_Strict):
     machines: list[Machine]
     inventory: dict[str, InventoryEntry] = {}
     seed_history: Path | None = None  # optional module exposing generate(pack, ...)
+    demo_company: DemoCompany | None = None
 
     def item(self, sku: str) -> CatalogItem | None:
         return next((i for i in self.catalog if i.sku == sku), None)
@@ -150,6 +167,17 @@ class Pack(_Strict):
 
     def machine(self, machine_id: str) -> Machine | None:
         return next((m for m in self.machines if m.machine_id == machine_id), None)
+
+    def scope_key(self, machine_id: str | None) -> str:
+        """Which budget bucket a request draws from."""
+        if self.config.budget_scope == "company":
+            return "company"
+        machine = self.machine(machine_id) if machine_id else None
+        return machine.line if machine else GENERAL_SCOPE
+
+    def approver_roles(self) -> list[str]:
+        """Approval roles from lowest to highest tier."""
+        return [r.approver_role for r in self.config.approval_rules if r.approver_role != "none"]
 
 
 def _cross_check(pack: Pack) -> list[str]:
@@ -179,6 +207,19 @@ def _cross_check(pack: Pack) -> list[str]:
     for sku in pack.inventory:
         if sku not in by_sku:
             problems.append(f"inventory: unknown sku {sku!r}")
+
+    if pack.demo_company:
+        if pack.config.budget_scope == "company":
+            expected = {"company"}
+        else:
+            expected = {m.line for m in pack.machines} | {GENERAL_SCOPE}
+        missing = expected - set(pack.demo_company.budgets)
+        if missing:
+            problems.append(f"demo_company: no budget for {sorted(missing)}")
+        roles = {m.role for m in pack.demo_company.members}
+        for role in pack.approver_roles():
+            if role not in roles:
+                problems.append(f"demo_company: nobody has approver role {role!r}")
 
     known_models = {m.model for m in pack.machines}
     for item in pack.catalog:
@@ -212,6 +253,8 @@ def load_pack(key: str, packs_dir: Path = PACKS_DIR) -> Pack:
     }
     if (root / "inventory.json").exists():
         raw["inventory"] = _read(root / "inventory.json")
+    if (root / "demo_company.json").exists():
+        raw["demo_company"] = _read(root / "demo_company.json")
     if (root / "seed_history.py").exists():
         raw["seed_history"] = root / "seed_history.py"
     try:
