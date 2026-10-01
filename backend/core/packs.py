@@ -121,6 +121,11 @@ class Supplier(_Strict):
     price_list: dict[str, PriceEntry]
 
 
+class InventoryEntry(_Strict):
+    on_hand: int = Field(ge=0)
+    location: str
+
+
 class Machine(_Strict):
     machine_id: str
     type: str
@@ -134,6 +139,8 @@ class Pack(_Strict):
     catalog: list[CatalogItem]
     suppliers: list[Supplier]
     machines: list[Machine]
+    inventory: dict[str, InventoryEntry] = {}
+    seed_history: Path | None = None  # optional module exposing generate(pack, ...)
 
     def item(self, sku: str) -> CatalogItem | None:
         return next((i for i in self.catalog if i.sku == sku), None)
@@ -169,6 +176,10 @@ def _cross_check(pack: Pack) -> list[str]:
                     f"category {item.category!r}"
                 )
 
+    for sku in pack.inventory:
+        if sku not in by_sku:
+            problems.append(f"inventory: unknown sku {sku!r}")
+
     known_models = {m.model for m in pack.machines}
     for item in pack.catalog:
         for model in item.compatible_models or []:
@@ -199,6 +210,10 @@ def load_pack(key: str, packs_dir: Path = PACKS_DIR) -> Pack:
         "suppliers": _read(root / "suppliers.json"),
         "machines": _read(root / "machines.json"),
     }
+    if (root / "inventory.json").exists():
+        raw["inventory"] = _read(root / "inventory.json")
+    if (root / "seed_history.py").exists():
+        raw["seed_history"] = root / "seed_history.py"
     try:
         pack = Pack.model_validate(raw)
     except ValidationError as e:

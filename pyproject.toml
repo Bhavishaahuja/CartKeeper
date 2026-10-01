@@ -1,3 +1,5 @@
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["backend/tests"]
+addopts = "-m 'not live'"
+markers = ["live: calls the real Anthropic API (run with -m live)"]

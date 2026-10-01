@@ -1,5 +1,9 @@
-import operator
 from typing import Annotated, TypedDict
+
+
+def add_quotes(left: list[dict], right: list[dict] | None) -> list[dict]:
+    """Parallel quote_supplier branches append; writing None clears (for a replan round)."""
+    return [] if right is None else (left or []) + right
 
 
 class PurchaseState(TypedDict, total=False):
@@ -8,8 +12,10 @@ class PurchaseState(TypedDict, total=False):
     requester_id: str
     raw_request: str
     need: dict                                    # {item_need, search_terms, machine_id, urgency, qty}
-    inventory_hit: dict | None
-    quotes: Annotated[list[dict], operator.add]   # reducer, ready for Day 1's parallel fan-out
+    candidates: list[dict]                        # catalog items that match the need, best first
+    inventory_hit: dict | None                    # {sku, name, qty, on_hand, location}
+    quotes: Annotated[list[dict], add_quotes]     # merged from parallel supplier branches
+    sourcing: dict                                # timings for the parallel round
     scored_quotes: list[dict]
     proposal: dict | None                         # {supplier_id, sku, qty, unit_price, total, rationale}
     policy_result: dict | None                    # {decision, reasons, budget_scope, remaining}
