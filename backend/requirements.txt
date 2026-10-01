@@ -8,6 +8,8 @@ python-dotenv==1.2.4
 PyYAML==6.0.3
 supabase==2.31.0
 pydantic==2.13.5
+psycopg[binary]==3.3.6
+psycopg-pool==3.3.3
 
 # dev
 pytest==9.1.1
