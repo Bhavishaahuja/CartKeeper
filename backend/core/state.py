@@ -19,8 +19,13 @@ class PurchaseState(TypedDict, total=False):
     scored_quotes: list[dict]
     proposal: dict | None                         # {supplier_id, sku, qty, unit_price, total, rationale}
     policy_result: dict | None                    # {decision, reasons, budget_scope, remaining}
+    eligible_quotes: list[dict]                   # options that pass policy, set by replan
+    previous_attempt: dict | None                 # the blocked proposal and why, shown on retry
     approver_id: str | None
-    approval: str | None
+    approver_role: str | None
+    approval: str | None                          # "approved" | "rejected"
+    decided_by: str | None
     replan_count: int
     payment: dict | None                          # {card_id, authorization_id, status}
+    status: str                                   # reserved | executed | rejected | blocked | no_match
     final_message: str

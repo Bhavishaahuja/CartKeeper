@@ -13,10 +13,12 @@ import time
 from typing import Literal, Optional
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langgraph.types import Send
+from langgraph.graph import END
+from langgraph.types import Send, interrupt
 from pydantic import BaseModel, Field, create_model
 
 from .packs import Pack
+from .policy import check_policy
 
 MAX_OPTION_ITEMS = 5
 
@@ -168,6 +170,7 @@ def reserve_from_storeroom(state: dict) -> dict:
     hit = state["inventory_hit"]
     return {
         "proposal": None,
+        "status": "reserved",
         "final_message": (
             f"In stock: {hit['qty']} x {hit['name']} reserved from {hit['location']} "
             f"({hit['on_hand']} on hand). Nothing to buy."
@@ -205,10 +208,14 @@ def choice_schema(option_ids: list[str]) -> type[BaseModel]:
 
 
 def propose(state: dict, *, llm, pack: Pack) -> dict:
-    need, quotes = state["need"], state.get("scored_quotes") or []
+    need = state["need"]
+    retrying = state.get("replan_count", 0) > 0
+    quotes = state.get("eligible_quotes") if retrying else state.get("scored_quotes")
+    quotes = quotes or []
     if not quotes:
         return {
             "proposal": None,
+            "status": "no_match",
             "final_message": f"Nothing in stock and no approved supplier carries anything matching {need['item_need']!r}.",
         }
 
@@ -220,6 +227,8 @@ def propose(state: dict, *, llm, pack: Pack) -> dict:
         "urgency": {"level": need["urgency"], **urgency.model_dump()},
         "options": quotes,
     }
+    if retrying:
+        context["previous_attempt"] = state.get("previous_attempt")
     system = (
         "You are the purchasing agent for a manufacturer. Pick the single best option for the need. "
         "Only pick a part that fits the named machine (compatible_models null means it fits anything). "
@@ -230,6 +239,11 @@ def propose(state: dict, *, llm, pack: Pack) -> dict:
         "why and cite both suppliers' on-time rates or scores. Keep qty as requested unless the unit "
         "makes that impossible. Explain the pick in 1 to 3 plain sentences."
     )
+    if retrying:
+        system += (
+            " Your previous pick was blocked by company policy for the reasons in previous_attempt; "
+            "the options left all pass those checks. Mention briefly why you switched."
+        )
     choice = _structured(llm, choice_schema([q["option_id"] for q in quotes])).invoke(
         [SystemMessage(system), HumanMessage(json.dumps(context, indent=2))]
     )
@@ -251,3 +265,143 @@ def propose(state: dict, *, llm, pack: Pack) -> dict:
         "rationale": choice.rationale.strip(),
     }
     return {"proposal": proposal}
+
+
+# --- the conscience: policy, approval, retry ---------------------------------
+
+MAX_REPLANS = 1
+
+
+def _check(proposal: dict, *, state: dict, pack: Pack, supplier_scores: dict, ledger) -> dict:
+    scope = pack.scope_key(state["need"].get("machine_id"))
+    return check_policy(
+        proposal, pack=pack, supplier_scores=supplier_scores,
+        scope_key=scope, budget=ledger.budget(scope), spent=ledger.spent(scope),
+    )
+
+
+def policy_check(state: dict, *, pack: Pack, supplier_scores: dict, ledger) -> dict:
+    return {"policy_result": _check(state["proposal"], state=state, pack=pack,
+                                    supplier_scores=supplier_scores, ledger=ledger)}
+
+
+def after_propose(state: dict) -> str:
+    return "policy_check" if state.get("proposal") else END
+
+
+def after_policy(state: dict) -> str:
+    decision = state["policy_result"]["decision"]
+    if decision == "auto_approve":
+        return "execute"
+    if decision == "needs_approval":
+        return "route_approver"
+    return "replan" if state.get("replan_count", 0) < MAX_REPLANS else "explain_and_close"
+
+
+def replan(state: dict, *, pack: Pack, supplier_scores: dict, ledger) -> dict:
+    """Keep only the options that would pass policy at the requested qty, then let the model pick again."""
+    qty = state["need"]["qty"]
+    eligible = [
+        q for q in state.get("scored_quotes") or []
+        if _check({"sku": q["sku"], "supplier_id": q["supplier_id"], "qty": qty},
+                  state=state, pack=pack, supplier_scores=supplier_scores, ledger=ledger)["decision"] != "blocked"
+    ]
+    blocked = state["proposal"]
+    log.info("replan: %s from %s blocked; %d option(s) pass policy", blocked["sku"], blocked["supplier_id"], len(eligible))
+    return {
+        "replan_count": state.get("replan_count", 0) + 1,
+        "eligible_quotes": eligible,
+        "previous_attempt": {
+            "proposal": {k: blocked[k] for k in ("sku", "supplier_id", "qty", "total")},
+            "reasons": state["policy_result"]["reasons"],
+        },
+    }
+
+
+def after_replan(state: dict) -> str:
+    return "propose" if state.get("eligible_quotes") else "explain_and_close"
+
+
+def explain_and_close(state: dict) -> dict:
+    reasons = " ".join(state["policy_result"]["reasons"])
+    tried = " I looked for another option within policy and none fits." if state.get("replan_count") else ""
+    return {
+        "status": "blocked",
+        "final_message": f"Not purchased. {reasons}{tried}",
+    }
+
+
+def route_approver(state: dict, *, pack: Pack, ledger) -> dict:
+    """Find who signs off: the required role, or the next role up if nobody holds it."""
+    roles = pack.approver_roles()
+    required = state["policy_result"]["approver_role"]
+    for role in roles[roles.index(required):]:
+        people = ledger.members_with_role(role)
+        if people:
+            return {"approver_id": people[0]["user_id"], "approver_role": role}
+    return {"approver_id": None, "approver_role": required}
+
+
+def after_route(state: dict) -> str:
+    return "await_approval" if state.get("approver_id") else "explain_and_close"
+
+
+def await_approval(state: dict) -> dict:
+    """Pause until the approver answers. Durable: the checkpointer holds the paused run."""
+    answer = interrupt({
+        "request_id": state["request_id"],
+        "approver_id": state["approver_id"],
+        "approver_role": state["approver_role"],
+        "proposal": state["proposal"],
+        "policy_result": state["policy_result"],
+    })
+    if not isinstance(answer, dict) or answer.get("approval") not in ("approved", "rejected"):
+        raise ValueError(f"approval must be 'approved' or 'rejected', got {answer!r}")
+    return {"approval": answer["approval"], "decided_by": answer.get("decided_by")}
+
+
+def after_approval(state: dict) -> str:
+    return "execute" if state["approval"] == "approved" else "close_rejected"
+
+
+def close_rejected(state: dict) -> dict:
+    return {"status": "rejected", "final_message": "Rejected by the approver. Nothing was purchased."}
+
+
+def execute(state: dict, *, pack: Pack, supplier_scores: dict, ledger, payments) -> dict:
+    """The only node that moves money. Re-checks policy first: an approval can sit for hours."""
+    recheck = _check(state["proposal"], state=state, pack=pack, supplier_scores=supplier_scores, ledger=ledger)
+    if recheck["decision"] == "blocked":
+        return {
+            "policy_result": recheck,
+            "status": "blocked",
+            "final_message": "Not purchased: policy changed while this waited. " + " ".join(recheck["reasons"]),
+        }
+    payment = payments.create(
+        state["proposal"], amount=recheck["total"], idempotency_key=f"ck-{state['request_id']}-execute",
+    )
+    return {"payment": payment}
+
+
+def after_execute(state: dict) -> str:
+    return "confirm_and_log" if state.get("payment") else END
+
+
+def confirm_and_log(state: dict, *, pack: Pack, ledger) -> dict:
+    p = state["proposal"]
+    ledger.record_order({
+        "request_id": state["request_id"],
+        "scope_key": pack.scope_key(state["need"].get("machine_id")),
+        "supplier_id": p["supplier_id"],
+        "sku": p["sku"],
+        "machine_id": state["need"].get("machine_id"),
+        "qty": p["qty"],
+        "total": state["payment"]["amount"],
+        "source": "cartkeeper",
+    })
+    return {
+        "status": "executed",
+        "final_message": (
+            f"Ordered {p['qty']} x {p['name']} from {p['supplier_name']} for ${state['payment']['amount']:,.2f}."
+        ),
+    }
