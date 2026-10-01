@@ -7,12 +7,13 @@ import pytest
 from dotenv import load_dotenv
 
 from backend.core.graph import run
+from backend.core.llm import api_key
 from backend.core.packs import load_pack
 
 load_dotenv()
 pytestmark = [
     pytest.mark.live,
-    pytest.mark.skipif(not os.environ.get("ANTHROPIC_API_KEY"), reason="ANTHROPIC_API_KEY not set"),
+    pytest.mark.skipif(not api_key(), reason="no Anthropic API key set"),
 ]
 
 
