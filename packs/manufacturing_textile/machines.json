@@ -1,0 +1,9 @@
+[
+  {"machine_id": "L-03", "type": "air_jet_loom",   "model": "Picanol OMNIplus-i", "line": "line_2"},
+  {"machine_id": "L-07", "type": "air_jet_loom",   "model": "Picanol OMNIplus-i", "line": "line_2"},
+  {"machine_id": "L-11", "type": "rapier_loom",    "model": "Picanol OptiMax-i",  "line": "line_1"},
+  {"machine_id": "S-04", "type": "ring_frame",     "model": "LMW LR6/S",          "line": "line_1"},
+  {"machine_id": "S-05", "type": "ring_frame",     "model": "LMW LR6/S",          "line": "line_1"},
+  {"machine_id": "K-02", "type": "circular_knitting", "model": "Mayer & Cie Relanit 3.2", "line": "line_3"},
+  {"machine_id": "D-01", "type": "jet_dyeing",     "model": "Thies iMaster H2O",  "line": "line_3"}
+]
