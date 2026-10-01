@@ -3,7 +3,7 @@
 intake -> resolve_items -> [check_inventory + quote_supplier x N, in parallel]
        -> merge_quotes -> reserve_from_storeroom                      (in stock: nothing to buy)
                        -> score_quotes -> propose -> policy_check
-            auto_approve   -> execute -> confirm_and_log
+            auto_approve   -> execute (single-use card + supplier charge) -> confirm_and_log
             needs_approval -> route_approver -> await_approval (durable pause)
                                 approved -> execute -> confirm_and_log
                                 rejected -> close_rejected
@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sys
 import uuid
 from functools import partial
@@ -47,14 +48,22 @@ def supplier_scores_from_seed(pack: Pack) -> dict[str, dict]:
     )
 
 
+def live_scores(pack: Pack, store):
+    """Scores recomputed from the store's order history on every call, so a received
+    order (late, on time, defective) changes the supplier's score on the next run."""
+    weights = pack.config.scoring_weights.model_dump()
+    ids = [s.supplier_id for s in pack.suppliers]
+    return lambda: score_suppliers(store.supplier_stats(), weights, supplier_ids=ids)
+
+
 def build_graph(pack: Pack, llm, *, store=None, payments=None, checkpointer=None,
                 supplier_scores: dict[str, dict] | None = None, quote_latency: float = QUOTE_LATENCY):
+    """`supplier_scores` pins the scores (tests); by default they're live from the store's history."""
     store = store if store is not None else InMemoryStore.from_demo(pack)
-    payments = payments if payments is not None else StubPayments()
+    payments = payments if payments is not None else StubPayments(currency=pack.config.currency)
     checkpointer = checkpointer if checkpointer is not None else InMemorySaver()
-    if supplier_scores is None:
-        supplier_scores = supplier_scores_from_seed(pack)
-    gate = {"pack": pack, "supplier_scores": supplier_scores, "ledger": store}
+    scores = (lambda: supplier_scores) if supplier_scores is not None else live_scores(pack, store)
+    gate = {"pack": pack, "scores": scores, "ledger": store}
 
     g = StateGraph(PurchaseState)
     g.add_node("intake", partial(nodes.intake, llm=llm, pack=pack))
@@ -62,14 +71,14 @@ def build_graph(pack: Pack, llm, *, store=None, payments=None, checkpointer=None
     g.add_node("check_inventory", partial(nodes.check_inventory, pack=pack))
     g.add_node("quote_supplier", partial(nodes.quote_supplier, pack=pack, latency=quote_latency))
     g.add_node("merge_quotes", nodes.merge_quotes)
-    g.add_node("reserve_from_storeroom", nodes.reserve_from_storeroom)
-    g.add_node("score_quotes", partial(nodes.score_quotes, supplier_scores=supplier_scores))
-    g.add_node("propose", partial(nodes.propose, llm=llm, pack=pack))
+    g.add_node("reserve_from_storeroom", partial(nodes.reserve_from_storeroom, ledger=store))
+    g.add_node("score_quotes", partial(nodes.score_quotes, scores=scores))
+    g.add_node("propose", partial(nodes.propose, llm=llm, pack=pack, ledger=store))
     g.add_node("policy_check", partial(nodes.policy_check, **gate))
     g.add_node("replan", partial(nodes.replan, **gate))
-    g.add_node("explain_and_close", nodes.explain_and_close)
+    g.add_node("explain_and_close", partial(nodes.explain_and_close, ledger=store))
     g.add_node("route_approver", partial(nodes.route_approver, pack=pack, ledger=store))
-    g.add_node("await_approval", nodes.await_approval)
+    g.add_node("await_approval", partial(nodes.await_approval, ledger=store))
     g.add_node("close_rejected", nodes.close_rejected)
     g.add_node("execute", partial(nodes.execute, payments=payments, **gate))
     g.add_node("confirm_and_log", partial(nodes.confirm_and_log, pack=pack, ledger=store))
@@ -167,6 +176,7 @@ def main(argv: list[str]) -> int:
     from dotenv import load_dotenv
 
     from .llm import make_llm
+    from .payments import make_payments
 
     if len(argv) != 1 or not argv[0].strip():
         print('usage: python -m backend.core.graph "<purchase request>"', file=sys.stderr)
@@ -175,7 +185,8 @@ def main(argv: list[str]) -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     pack = load_pack(DEFAULT_PACK)
     store = InMemoryStore.from_demo(pack)
-    graph = build_graph(pack, make_llm(), store=store)
+    payments = make_payments(os.environ.get("STRIPE_SECRET_KEY"), currency=pack.config.currency)
+    graph = build_graph(pack, make_llm(), store=store, payments=payments)
     view = start(graph, argv[0], requester_id="u-tech-1")
     print(json.dumps(_summary(view), indent=2, default=str))
 

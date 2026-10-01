@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import time
+from datetime import datetime, timedelta, timezone
 from typing import Literal, Optional
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -18,6 +19,7 @@ from langgraph.types import Send, interrupt
 from pydantic import BaseModel, Field, create_model
 
 from .packs import Pack
+from .payments import PaymentError
 from .policy import check_policy
 
 MAX_OPTION_ITEMS = 5
@@ -166,8 +168,10 @@ def after_merge(state: dict) -> str:
     return "reserve_from_storeroom" if state.get("inventory_hit") else "score_quotes"
 
 
-def reserve_from_storeroom(state: dict) -> dict:
+def reserve_from_storeroom(state: dict, *, ledger) -> dict:
     hit = state["inventory_hit"]
+    ledger.audit(state["request_id"], "reserve_from_storeroom", "reserved", actor="agent",
+                 rationale=f"{hit['on_hand']} on hand at {hit['location']}", detail=hit)
     return {
         "proposal": None,
         "status": "reserved",
@@ -178,8 +182,9 @@ def reserve_from_storeroom(state: dict) -> dict:
     }
 
 
-def score_quotes(state: dict, *, supplier_scores: dict[str, dict]) -> dict:
+def score_quotes(state: dict, *, scores) -> dict:
     """Attach each supplier's reliability (computed in code from order history) to its quotes."""
+    supplier_scores = scores()
     ordered = sorted(state.get("quotes") or [], key=lambda q: (q["sku"], q["unit_price"], q["supplier_id"]))
     scored = []
     for n, q in enumerate(ordered, 1):
@@ -207,7 +212,7 @@ def choice_schema(option_ids: list[str]) -> type[BaseModel]:
     )
 
 
-def propose(state: dict, *, llm, pack: Pack) -> dict:
+def propose(state: dict, *, llm, pack: Pack, ledger) -> dict:
     need = state["need"]
     retrying = state.get("replan_count", 0) > 0
     quotes = state.get("eligible_quotes") if retrying else state.get("scored_quotes")
@@ -264,6 +269,9 @@ def propose(state: dict, *, llm, pack: Pack) -> dict:
         "supplier_score": picked["reliability"]["score"],
         "rationale": choice.rationale.strip(),
     }
+    ledger.audit(state["request_id"], "propose", "replanned" if retrying else "proposed", actor="agent",
+                 rationale=proposal["rationale"],
+                 detail={k: proposal[k] for k in ("supplier_id", "sku", "qty", "unit_price", "total", "supplier_score")})
     return {"proposal": proposal}
 
 
@@ -272,17 +280,20 @@ def propose(state: dict, *, llm, pack: Pack) -> dict:
 MAX_REPLANS = 1
 
 
-def _check(proposal: dict, *, state: dict, pack: Pack, supplier_scores: dict, ledger) -> dict:
+def _check(proposal: dict, *, state: dict, pack: Pack, scores, ledger, supplier_scores: dict | None = None) -> dict:
     scope = pack.scope_key(state["need"].get("machine_id"))
     return check_policy(
-        proposal, pack=pack, supplier_scores=supplier_scores,
+        proposal, pack=pack, supplier_scores=supplier_scores if supplier_scores is not None else scores(),
         scope_key=scope, budget=ledger.budget(scope), spent=ledger.spent(scope),
     )
 
 
-def policy_check(state: dict, *, pack: Pack, supplier_scores: dict, ledger) -> dict:
-    return {"policy_result": _check(state["proposal"], state=state, pack=pack,
-                                    supplier_scores=supplier_scores, ledger=ledger)}
+def policy_check(state: dict, *, pack: Pack, scores, ledger) -> dict:
+    result = _check(state["proposal"], state=state, pack=pack, scores=scores, ledger=ledger)
+    ledger.audit(state["request_id"], "policy_check", result["decision"], actor="policy",
+                 rationale=" ".join(result["reasons"]) or None,
+                 detail={k: result.get(k) for k in ("total", "budget_scope", "remaining", "approver_role")})
+    return {"policy_result": result}
 
 
 def after_propose(state: dict) -> str:
@@ -298,13 +309,14 @@ def after_policy(state: dict) -> str:
     return "replan" if state.get("replan_count", 0) < MAX_REPLANS else "explain_and_close"
 
 
-def replan(state: dict, *, pack: Pack, supplier_scores: dict, ledger) -> dict:
+def replan(state: dict, *, pack: Pack, scores, ledger) -> dict:
     """Keep only the options that would pass policy at the requested qty, then let the model pick again."""
     qty = state["need"]["qty"]
+    supplier_scores = scores()
     eligible = [
         q for q in state.get("scored_quotes") or []
-        if _check({"sku": q["sku"], "supplier_id": q["supplier_id"], "qty": qty},
-                  state=state, pack=pack, supplier_scores=supplier_scores, ledger=ledger)["decision"] != "blocked"
+        if _check({"sku": q["sku"], "supplier_id": q["supplier_id"], "qty": qty}, state=state, pack=pack,
+                  scores=scores, supplier_scores=supplier_scores, ledger=ledger)["decision"] != "blocked"
     ]
     blocked = state["proposal"]
     log.info("replan: %s from %s blocked; %d option(s) pass policy", blocked["sku"], blocked["supplier_id"], len(eligible))
@@ -322,9 +334,11 @@ def after_replan(state: dict) -> str:
     return "propose" if state.get("eligible_quotes") else "explain_and_close"
 
 
-def explain_and_close(state: dict) -> dict:
+def explain_and_close(state: dict, *, ledger) -> dict:
     reasons = " ".join(state["policy_result"]["reasons"])
     tried = " I looked for another option within policy and none fits." if state.get("replan_count") else ""
+    ledger.audit(state["request_id"], "explain_and_close", "not_purchased", actor="policy",
+                 rationale=(reasons + tried).strip() or "No approver available.")
     return {
         "status": "blocked",
         "final_message": f"Not purchased. {reasons}{tried}",
@@ -346,7 +360,7 @@ def after_route(state: dict) -> str:
     return "await_approval" if state.get("approver_id") else "explain_and_close"
 
 
-def await_approval(state: dict) -> dict:
+def await_approval(state: dict, *, ledger) -> dict:
     """Pause until the approver answers. Durable: the checkpointer holds the paused run."""
     answer = interrupt({
         "request_id": state["request_id"],
@@ -357,6 +371,8 @@ def await_approval(state: dict) -> dict:
     })
     if not isinstance(answer, dict) or answer.get("approval") not in ("approved", "rejected"):
         raise ValueError(f"approval must be 'approved' or 'rejected', got {answer!r}")
+    ledger.audit(state["request_id"], "await_approval", answer["approval"], actor=answer.get("decided_by"),
+                 detail={"approver_role": state["approver_role"], "total": state["proposal"]["total"]})
     return {"approval": answer["approval"], "decided_by": answer.get("decided_by")}
 
 
@@ -368,28 +384,51 @@ def close_rejected(state: dict) -> dict:
     return {"status": "rejected", "final_message": "Rejected by the approver. Nothing was purchased."}
 
 
-def execute(state: dict, *, pack: Pack, supplier_scores: dict, ledger, payments) -> dict:
+def execute(state: dict, *, pack: Pack, scores, ledger, payments) -> dict:
     """The only node that moves money. Re-checks policy first: an approval can sit for hours."""
-    recheck = _check(state["proposal"], state=state, pack=pack, supplier_scores=supplier_scores, ledger=ledger)
+    rid = state["request_id"]
+    recheck = _check(state["proposal"], state=state, pack=pack, scores=scores, ledger=ledger)
     if recheck["decision"] == "blocked":
+        ledger.audit(rid, "execute", "blocked_at_execute", actor="policy", rationale=" ".join(recheck["reasons"]))
         return {
             "policy_result": recheck,
             "status": "blocked",
             "final_message": "Not purchased: policy changed while this waited. " + " ".join(recheck["reasons"]),
         }
-    payment = payments.create(
-        state["proposal"], amount=recheck["total"], idempotency_key=f"ck-{state['request_id']}-execute",
-    )
+    p = state["proposal"]
+    try:
+        payment = payments.create(p, amount=recheck["total"], idempotency_prefix=f"ck-{rid}",
+                                  metadata={"request_id": rid, "approved_by": state.get("decided_by") or "policy"})
+    except PaymentError as e:
+        ledger.audit(rid, "execute", "payment_failed", actor="stripe", rationale=str(e))
+        return {"status": "payment_failed",
+                "final_message": f"Not purchased: the payment didn't go through ({e}). Nothing was charged."}
+
+    ledger.audit(rid, "execute", "card_issued", actor="stripe", stripe_ref=payment["card_id"],
+                 rationale=f"Single-use card ending {payment['last4']}, limit {payment['spending_limit']:.2f}",
+                 detail={"provider": payment["provider"], "spending_limit": payment["spending_limit"]})
+    approved = payment["status"] == "approved"
+    ledger.audit(rid, "execute", "charge_approved" if approved else "charge_declined", actor="stripe",
+                 stripe_ref=payment["authorization_id"], rationale=payment.get("decline_reason"),
+                 detail={"amount": payment["amount"], "merchant": p["supplier_name"],
+                         "transaction_id": payment.get("transaction_id")})
+    if not approved:
+        return {"payment": payment, "status": "payment_declined",
+                "final_message": (f"Not purchased: the card issuer declined the supplier's charge "
+                                  f"({payment.get('decline_reason') or 'no reason given'}).")}
     return {"payment": payment}
 
 
 def after_execute(state: dict) -> str:
-    return "confirm_and_log" if state.get("payment") else END
+    payment = state.get("payment")
+    return "confirm_and_log" if payment and payment["status"] == "approved" else END
 
 
 def confirm_and_log(state: dict, *, pack: Pack, ledger) -> dict:
+    """Write the purchase order into history. Its delivery, once received, moves the supplier's score."""
     p = state["proposal"]
-    ledger.record_order({
+    ordered_at = datetime.now(timezone.utc)
+    recorded = ledger.record_order({
         "request_id": state["request_id"],
         "scope_key": pack.scope_key(state["need"].get("machine_id")),
         "supplier_id": p["supplier_id"],
@@ -397,8 +436,16 @@ def confirm_and_log(state: dict, *, pack: Pack, ledger) -> dict:
         "machine_id": state["need"].get("machine_id"),
         "qty": p["qty"],
         "total": state["payment"]["amount"],
+        "card_id": state["payment"]["card_id"],
+        "ordered_at": ordered_at,
+        "promised_at": ordered_at + timedelta(days=p["lead_days"]),
         "source": "cartkeeper",
     })
+    if recorded:
+        ledger.audit(state["request_id"], "confirm_and_log", "order_recorded", actor="agent",
+                     stripe_ref=state["payment"]["card_id"],
+                     detail={"supplier_id": p["supplier_id"], "sku": p["sku"], "qty": p["qty"],
+                             "total": state["payment"]["amount"], "lead_days": p["lead_days"]})
     return {
         "status": "executed",
         "final_message": (

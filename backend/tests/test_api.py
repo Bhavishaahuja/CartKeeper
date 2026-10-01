@@ -2,6 +2,7 @@ import json
 
 import pytest
 from fastapi.testclient import TestClient
+from langgraph.checkpoint.memory import InMemorySaver
 
 from backend.core.graph import supplier_scores_from_seed
 from backend.core.packs import load_pack
@@ -39,7 +40,7 @@ def fake_llm():
 def ctx():
     pack = load_pack("manufacturing_textile")
     store, payments = InMemoryStore.from_demo(pack), StubPayments()
-    app = create_app(pack=pack, llm=fake_llm(), store=store, payments=payments,
+    app = create_app(pack=pack, llm=fake_llm(), store=store, payments=payments, checkpointer=InMemorySaver(),
                      supplier_scores=supplier_scores_from_seed(pack), quote_latency=0)
     with TestClient(app) as client:
         yield client, store, payments
