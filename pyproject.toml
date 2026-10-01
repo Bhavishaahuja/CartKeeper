@@ -1,0 +1,8 @@
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["backend/tests"]
+addopts = "-m 'not live and not stripe'"
+markers = [
+  "live: calls the real Anthropic API (run with -m live)",
+  "stripe: calls Stripe in test mode (run with -m stripe, needs STRIPE_SECRET_KEY)",
+]

@@ -1,0 +1,7 @@
+{
+  "BRG-6205-2RS": {"on_hand": 12, "location": "Storeroom A, bin 14"},
+  "BRG-6206-2RS": {"on_hand": 1,  "location": "Storeroom A, bin 15"},
+  "VB-B52":       {"on_hand": 4,  "location": "Storeroom A, rack 3"},
+  "SODA-ASH-KG":  {"on_hand": 300, "location": "Chemical store"},
+  "HW-330-OMNI":  {"on_hand": 40, "location": "Weaving store, drawer 2"}
+}

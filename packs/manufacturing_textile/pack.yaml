@@ -1,0 +1,21 @@
+name: Manufacturing (Textile mill)
+currency: usd                    # demo runs in USD test mode
+budget_scope: production_line    # budgets tracked per line
+urgency_levels:
+  line_down:   { label: "Machine stopped", speed_weight: 0.7, price_weight: 0.3 }
+  this_week:   { label: "Needed this week", speed_weight: 0.4, price_weight: 0.6 }
+  restock:     { label: "Routine restock", speed_weight: 0.1, price_weight: 0.9 }
+approval_rules:
+  - { max_total: 150,  approver_role: none }              # auto-approve
+  - { max_total: 1500, approver_role: maintenance_manager }
+  - { max_total: null, approver_role: owner }
+policy:
+  approved_suppliers_only: true
+  min_supplier_score: 60
+  blocked_categories: []
+scoring_weights:                 # how CartLens computes the supplier score
+  on_time_rate: 0.5
+  avg_days_late: 0.2
+  defect_rate: 0.3
+hooks:
+  pre_search: [machine_compatibility]
