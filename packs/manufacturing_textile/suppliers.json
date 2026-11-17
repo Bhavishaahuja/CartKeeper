@@ -1,0 +1,65 @@
+[
+  {
+    "supplier_id": "SUP-01", "name": "Coimbatore Textile Spares", "approved": true,
+    "categories": ["loom_parts", "spinning_parts", "knitting_parts"],
+    "price_list": {
+      "HW-330-OMNI":   {"unit_price": 0.16, "lead_days": 1},
+      "HW-280-OPTI":   {"unit_price": 0.15, "lead_days": 1},
+      "REED-80D":      {"unit_price": 118.00, "lead_days": 3},
+      "DW-145-OPEN":   {"unit_price": 0.07, "lead_days": 1},
+      "GRIP-OPTI-SET": {"unit_price": 210.00, "lead_days": 4},
+      "RT-EL1-1000":   {"unit_price": 21.00, "lead_days": 1},
+      "TAPE-SPN-12":   {"unit_price": 1.10, "lead_days": 1},
+      "APRON-TB-SET":  {"unit_price": 0.85, "lead_days": 2},
+      "COT-28MM":      {"unit_price": 0.60, "lead_days": 2},
+      "NDL-LATCH-28G": {"unit_price": 0.32, "lead_days": 2}
+    }
+  },
+  {
+    "supplier_id": "SUP-02", "name": "Precision Loom Parts Co", "approved": true,
+    "categories": ["loom_parts", "sensors", "motors"],
+    "price_list": {
+      "HW-330-OMNI":   {"unit_price": 0.19, "lead_days": 1},
+      "HW-280-OPTI":   {"unit_price": 0.18, "lead_days": 1},
+      "REED-80D":      {"unit_price": 135.00, "lead_days": 2},
+      "DW-145-OPEN":   {"unit_price": 0.09, "lead_days": 1},
+      "GRIP-OPTI-SET": {"unit_price": 245.00, "lead_days": 2},
+      "NOZ-MAIN-OMNI": {"unit_price": 64.00, "lead_days": 2},
+      "MTR-DRV-OMNI":  {"unit_price": 890.00, "lead_days": 3},
+      "SNS-WEFT-OMNI": {"unit_price": 112.00, "lead_days": 2},
+      "SNS-PROX-M18":  {"unit_price": 24.00, "lead_days": 1}
+    }
+  },
+  {
+    "supplier_id": "SUP-03", "name": "National Bearings & Belts", "approved": true,
+    "categories": ["bearings", "belts", "motors"],
+    "price_list": {
+      "BRG-6205-2RS": {"unit_price": 3.80, "lead_days": 1},
+      "BRG-6206-2RS": {"unit_price": 4.60, "lead_days": 1},
+      "BRG-6305-ZZ":  {"unit_price": 5.90, "lead_days": 2},
+      "VB-B52":       {"unit_price": 7.50, "lead_days": 1},
+      "VB-B60":       {"unit_price": 8.40, "lead_days": 1},
+      "MTR-3PH-2K2":  {"unit_price": 185.00, "lead_days": 3},
+      "MTR-DRV-OMNI": {"unit_price": 860.00, "lead_days": 6}
+    }
+  },
+  {
+    "supplier_id": "SUP-04", "name": "Sri Ram Dye Chem", "approved": true,
+    "categories": ["dye_chemicals"],
+    "price_list": {
+      "DYE-RB5-KG":  {"unit_price": 9.20, "lead_days": 2},
+      "SODA-ASH-KG": {"unit_price": 0.45, "lead_days": 1},
+      "WET-AGT-L":   {"unit_price": 3.10, "lead_days": 2}
+    }
+  },
+  {
+    "supplier_id": "SUP-05", "name": "Rapid MRO Supply", "approved": false,
+    "categories": ["loom_parts", "bearings", "belts", "sensors"],
+    "price_list": {
+      "HW-330-OMNI":  {"unit_price": 0.14, "lead_days": 0},
+      "BRG-6205-2RS": {"unit_price": 3.20, "lead_days": 0},
+      "VB-B52":       {"unit_price": 6.90, "lead_days": 0},
+      "SNS-PROX-M18": {"unit_price": 19.50, "lead_days": 0}
+    }
+  }
+]
