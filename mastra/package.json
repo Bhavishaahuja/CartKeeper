@@ -9,7 +9,7 @@
     "start": "mastra start",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "parity": "cd .. && python mastra/scripts/export_parity.py"
+    "parity": "cd .. && python mastra/scripts/export_parity.py && python mastra/scripts/export_behavior.py"
   },
   "license": "MIT",
   "type": "module",

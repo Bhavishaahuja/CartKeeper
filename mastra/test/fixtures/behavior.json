@@ -1,0 +1,1459 @@
+{
+ "auto_approve_cheapest": {
+  "approver_id": null,
+  "approver_role": null,
+  "candidates": [
+   "HW-330-OMNI"
+  ],
+  "decided_by": null,
+  "eligible": [],
+  "inventory_hit": null,
+  "message": "Ordered 500 x Steel heald wire 330 mm from Coimbatore Textile Spares for $80.00.",
+  "model_calls": [
+   "Need",
+   "Choice"
+  ],
+  "need": {
+   "item_need": "heald wires",
+   "machine_id": "L-07",
+   "qty": 500,
+   "search_terms": [
+    "heald wire"
+   ],
+   "urgency": "restock"
+  },
+  "options": [
+   {
+    "lead_days": 1,
+    "option_id": "opt-1",
+    "reliability": {
+     "avg_days_late": 1.07,
+     "defect_rate": 0.101,
+     "low_confidence": false,
+     "on_time_rate": 0.727,
+     "orders": 170,
+     "score": 69.9
+    },
+    "sku": "HW-330-OMNI",
+    "supplier_id": "SUP-01",
+    "unit_price": 0.16
+   },
+   {
+    "lead_days": 1,
+    "option_id": "opt-2",
+    "reliability": {
+     "avg_days_late": 0.11,
+     "defect_rate": 0.023,
+     "low_confidence": false,
+     "on_time_rate": 0.936,
+     "orders": 120,
+     "score": 93.6
+    },
+    "sku": "HW-330-OMNI",
+    "supplier_id": "SUP-02",
+    "unit_price": 0.19
+   }
+  ],
+  "orders": [
+   {
+    "scope_key": "line_2",
+    "total": 80.0
+   }
+  ],
+  "paid": 80.0,
+  "paused": {
+   "approver_id": null,
+   "status": "executed"
+  },
+  "payments": 1,
+  "policy_result": {
+   "approver_role": "none",
+   "budget": 3000.0,
+   "budget_scope": "production_line",
+   "decision": "auto_approve",
+   "reasons": [
+    "$80.00 is within the $150.00 auto-approve limit and the line_2 budget."
+   ],
+   "remaining": 3000.0,
+   "scope_key": "line_2",
+   "spent": 0,
+   "total": 80.0
+  },
+  "previous_attempt": null,
+  "proposal": {
+   "lead_days": 1,
+   "name": "Steel heald wire 330 mm",
+   "qty": 500,
+   "rationale": "scenario pick",
+   "sku": "HW-330-OMNI",
+   "supplier_id": "SUP-01",
+   "supplier_name": "Coimbatore Textile Spares",
+   "supplier_score": 69.9,
+   "total": 80.0,
+   "unit_price": 0.16
+  },
+  "replan_count": 0,
+  "status": "executed"
+ },
+ "auto_approve_heald": {
+  "approver_id": null,
+  "approver_role": null,
+  "candidates": [
+   "HW-330-OMNI"
+  ],
+  "decided_by": null,
+  "eligible": [],
+  "inventory_hit": null,
+  "message": "Ordered 500 x Steel heald wire 330 mm from Precision Loom Parts Co for $95.00.",
+  "model_calls": [
+   "Need",
+   "Choice"
+  ],
+  "need": {
+   "item_need": "heald wires",
+   "machine_id": "L-07",
+   "qty": 500,
+   "search_terms": [
+    "heald wire"
+   ],
+   "urgency": "line_down"
+  },
+  "options": [
+   {
+    "lead_days": 1,
+    "option_id": "opt-1",
+    "reliability": {
+     "avg_days_late": 1.07,
+     "defect_rate": 0.101,
+     "low_confidence": false,
+     "on_time_rate": 0.727,
+     "orders": 170,
+     "score": 69.9
+    },
+    "sku": "HW-330-OMNI",
+    "supplier_id": "SUP-01",
+    "unit_price": 0.16
+   },
+   {
+    "lead_days": 1,
+    "option_id": "opt-2",
+    "reliability": {
+     "avg_days_late": 0.11,
+     "defect_rate": 0.023,
+     "low_confidence": false,
+     "on_time_rate": 0.936,
+     "orders": 120,
+     "score": 93.6
+    },
+    "sku": "HW-330-OMNI",
+    "supplier_id": "SUP-02",
+    "unit_price": 0.19
+   }
+  ],
+  "orders": [
+   {
+    "scope_key": "line_2",
+    "total": 95.0
+   }
+  ],
+  "paid": 95.0,
+  "paused": {
+   "approver_id": null,
+   "status": "executed"
+  },
+  "payments": 1,
+  "policy_result": {
+   "approver_role": "none",
+   "budget": 3000.0,
+   "budget_scope": "production_line",
+   "decision": "auto_approve",
+   "reasons": [
+    "$95.00 is within the $150.00 auto-approve limit and the line_2 budget."
+   ],
+   "remaining": 3000.0,
+   "scope_key": "line_2",
+   "spent": 0,
+   "total": 95.0
+  },
+  "previous_attempt": null,
+  "proposal": {
+   "lead_days": 1,
+   "name": "Steel heald wire 330 mm",
+   "qty": 500,
+   "rationale": "scenario pick",
+   "sku": "HW-330-OMNI",
+   "supplier_id": "SUP-02",
+   "supplier_name": "Precision Loom Parts Co",
+   "supplier_score": 93.6,
+   "total": 95.0,
+   "unit_price": 0.19
+  },
+  "replan_count": 0,
+  "status": "executed"
+ },
+ "blocked_nothing_fits": {
+  "approver_id": null,
+  "approver_role": null,
+  "candidates": [
+   "MTR-DRV-OMNI"
+  ],
+  "decided_by": null,
+  "eligible": [],
+  "inventory_hit": null,
+  "message": "Not purchased. $890.00 is more than the $500.00 left in line_2's budget this month. I looked for another option within policy and none fits.",
+  "model_calls": [
+   "Need",
+   "Choice"
+  ],
+  "need": {
+   "item_need": "drive motor",
+   "machine_id": "L-03",
+   "qty": 1,
+   "search_terms": [
+    "drive motor"
+   ],
+   "urgency": "line_down"
+  },
+  "options": [
+   {
+    "lead_days": 6,
+    "option_id": "opt-1",
+    "reliability": {
+     "avg_days_late": 0.2,
+     "defect_rate": 0.046,
+     "low_confidence": false,
+     "on_time_rate": 0.891,
+     "orders": 200,
+     "score": 88.2
+    },
+    "sku": "MTR-DRV-OMNI",
+    "supplier_id": "SUP-03",
+    "unit_price": 860.0
+   },
+   {
+    "lead_days": 3,
+    "option_id": "opt-2",
+    "reliability": {
+     "avg_days_late": 0.11,
+     "defect_rate": 0.023,
+     "low_confidence": false,
+     "on_time_rate": 0.936,
+     "orders": 120,
+     "score": 93.6
+    },
+    "sku": "MTR-DRV-OMNI",
+    "supplier_id": "SUP-02",
+    "unit_price": 890.0
+   }
+  ],
+  "orders": [],
+  "paid": null,
+  "paused": {
+   "approver_id": null,
+   "status": "blocked"
+  },
+  "payments": 0,
+  "policy_result": {
+   "approver_role": null,
+   "budget": 3000.0,
+   "budget_scope": "production_line",
+   "decision": "blocked",
+   "reasons": [
+    "$890.00 is more than the $500.00 left in line_2's budget this month."
+   ],
+   "remaining": 500.0,
+   "scope_key": "line_2",
+   "spent": 2500,
+   "total": 890.0
+  },
+  "previous_attempt": {
+   "proposal": {
+    "qty": 1,
+    "sku": "MTR-DRV-OMNI",
+    "supplier_id": "SUP-02",
+    "total": 890.0
+   },
+   "reasons": [
+    "$890.00 is more than the $500.00 left in line_2's budget this month."
+   ]
+  },
+  "proposal": {
+   "lead_days": 3,
+   "name": "Loom main drive motor 7.5 kW (SUMO)",
+   "qty": 1,
+   "rationale": "scenario pick",
+   "sku": "MTR-DRV-OMNI",
+   "supplier_id": "SUP-02",
+   "supplier_name": "Precision Loom Parts Co",
+   "supplier_score": 93.6,
+   "total": 890.0,
+   "unit_price": 890.0
+  },
+  "replan_count": 1,
+  "status": "blocked"
+ },
+ "blocked_replans_once": {
+  "approver_id": "u-mm-1",
+  "approver_role": "maintenance_manager",
+  "candidates": [
+   "MTR-DRV-OMNI"
+  ],
+  "decided_by": null,
+  "eligible": [
+   "SUP-03"
+  ],
+  "inventory_hit": null,
+  "message": null,
+  "model_calls": [
+   "Need",
+   "Choice",
+   "Choice"
+  ],
+  "need": {
+   "item_need": "drive motor",
+   "machine_id": "L-03",
+   "qty": 1,
+   "search_terms": [
+    "drive motor"
+   ],
+   "urgency": "line_down"
+  },
+  "options": [
+   {
+    "lead_days": 6,
+    "option_id": "opt-1",
+    "reliability": {
+     "avg_days_late": 0.2,
+     "defect_rate": 0.046,
+     "low_confidence": false,
+     "on_time_rate": 0.891,
+     "orders": 200,
+     "score": 88.2
+    },
+    "sku": "MTR-DRV-OMNI",
+    "supplier_id": "SUP-03",
+    "unit_price": 860.0
+   },
+   {
+    "lead_days": 3,
+    "option_id": "opt-2",
+    "reliability": {
+     "avg_days_late": 0.11,
+     "defect_rate": 0.023,
+     "low_confidence": false,
+     "on_time_rate": 0.936,
+     "orders": 120,
+     "score": 93.6
+    },
+    "sku": "MTR-DRV-OMNI",
+    "supplier_id": "SUP-02",
+    "unit_price": 890.0
+   }
+  ],
+  "orders": [],
+  "paid": null,
+  "paused": {
+   "approver_id": "u-mm-1",
+   "status": "awaiting_approval"
+  },
+  "payments": 0,
+  "policy_result": {
+   "approver_role": "maintenance_manager",
+   "budget": 3000.0,
+   "budget_scope": "production_line",
+   "decision": "needs_approval",
+   "reasons": [
+    "$860.00 needs maintenance manager approval (up to $1,500.00)."
+   ],
+   "remaining": 870.0,
+   "scope_key": "line_2",
+   "spent": 2130,
+   "total": 860.0
+  },
+  "previous_attempt": {
+   "proposal": {
+    "qty": 1,
+    "sku": "MTR-DRV-OMNI",
+    "supplier_id": "SUP-02",
+    "total": 890.0
+   },
+   "reasons": [
+    "$890.00 is more than the $870.00 left in line_2's budget this month."
+   ]
+  },
+  "proposal": {
+   "lead_days": 6,
+   "name": "Loom main drive motor 7.5 kW (SUMO)",
+   "qty": 1,
+   "rationale": "scenario pick",
+   "sku": "MTR-DRV-OMNI",
+   "supplier_id": "SUP-03",
+   "supplier_name": "National Bearings & Belts",
+   "supplier_score": 88.2,
+   "total": 860.0,
+   "unit_price": 860.0
+  },
+  "replan_count": 1,
+  "status": "awaiting_approval"
+ },
+ "blocked_twice": {
+  "approver_id": null,
+  "approver_role": null,
+  "candidates": [
+   "MTR-DRV-OMNI"
+  ],
+  "decided_by": null,
+  "eligible": [
+   "SUP-03"
+  ],
+  "inventory_hit": null,
+  "message": "Not purchased. $1,720.00 is more than the $870.00 left in line_2's budget this month. I looked for another option within policy and none fits.",
+  "model_calls": [
+   "Need",
+   "Choice",
+   "Choice"
+  ],
+  "need": {
+   "item_need": "drive motor",
+   "machine_id": "L-03",
+   "qty": 1,
+   "search_terms": [
+    "drive motor"
+   ],
+   "urgency": "line_down"
+  },
+  "options": [
+   {
+    "lead_days": 6,
+    "option_id": "opt-1",
+    "reliability": {
+     "avg_days_late": 0.2,
+     "defect_rate": 0.046,
+     "low_confidence": false,
+     "on_time_rate": 0.891,
+     "orders": 200,
+     "score": 88.2
+    },
+    "sku": "MTR-DRV-OMNI",
+    "supplier_id": "SUP-03",
+    "unit_price": 860.0
+   },
+   {
+    "lead_days": 3,
+    "option_id": "opt-2",
+    "reliability": {
+     "avg_days_late": 0.11,
+     "defect_rate": 0.023,
+     "low_confidence": false,
+     "on_time_rate": 0.936,
+     "orders": 120,
+     "score": 93.6
+    },
+    "sku": "MTR-DRV-OMNI",
+    "supplier_id": "SUP-02",
+    "unit_price": 890.0
+   }
+  ],
+  "orders": [],
+  "paid": null,
+  "paused": {
+   "approver_id": null,
+   "status": "blocked"
+  },
+  "payments": 0,
+  "policy_result": {
+   "approver_role": null,
+   "budget": 3000.0,
+   "budget_scope": "production_line",
+   "decision": "blocked",
+   "reasons": [
+    "$1,720.00 is more than the $870.00 left in line_2's budget this month."
+   ],
+   "remaining": 870.0,
+   "scope_key": "line_2",
+   "spent": 2130,
+   "total": 1720.0
+  },
+  "previous_attempt": {
+   "proposal": {
+    "qty": 1,
+    "sku": "MTR-DRV-OMNI",
+    "supplier_id": "SUP-02",
+    "total": 890.0
+   },
+   "reasons": [
+    "$890.00 is more than the $870.00 left in line_2's budget this month."
+   ]
+  },
+  "proposal": {
+   "lead_days": 6,
+   "name": "Loom main drive motor 7.5 kW (SUMO)",
+   "qty": 2,
+   "rationale": "scenario pick",
+   "sku": "MTR-DRV-OMNI",
+   "supplier_id": "SUP-03",
+   "supplier_name": "National Bearings & Belts",
+   "supplier_score": 88.2,
+   "total": 1720.0,
+   "unit_price": 860.0
+  },
+  "replan_count": 1,
+  "status": "blocked"
+ },
+ "budget_spent_while_waiting": {
+  "approver_id": "u-mm-1",
+  "approver_role": "maintenance_manager",
+  "candidates": [
+   "MTR-DRV-OMNI"
+  ],
+  "decided_by": "u-mm-1",
+  "eligible": [],
+  "inventory_hit": null,
+  "message": "Not purchased: policy changed while this waited. $890.00 is more than the $500.00 left in line_2's budget this month.",
+  "model_calls": [
+   "Need",
+   "Choice"
+  ],
+  "need": {
+   "item_need": "drive motor",
+   "machine_id": "L-03",
+   "qty": 1,
+   "search_terms": [
+    "drive motor"
+   ],
+   "urgency": "line_down"
+  },
+  "options": [
+   {
+    "lead_days": 6,
+    "option_id": "opt-1",
+    "reliability": {
+     "avg_days_late": 0.2,
+     "defect_rate": 0.046,
+     "low_confidence": false,
+     "on_time_rate": 0.891,
+     "orders": 200,
+     "score": 88.2
+    },
+    "sku": "MTR-DRV-OMNI",
+    "supplier_id": "SUP-03",
+    "unit_price": 860.0
+   },
+   {
+    "lead_days": 3,
+    "option_id": "opt-2",
+    "reliability": {
+     "avg_days_late": 0.11,
+     "defect_rate": 0.023,
+     "low_confidence": false,
+     "on_time_rate": 0.936,
+     "orders": 120,
+     "score": 93.6
+    },
+    "sku": "MTR-DRV-OMNI",
+    "supplier_id": "SUP-02",
+    "unit_price": 890.0
+   }
+  ],
+  "orders": [],
+  "paid": null,
+  "paused": {
+   "approver_id": "u-mm-1",
+   "status": "awaiting_approval"
+  },
+  "payments": 0,
+  "policy_result": {
+   "approver_role": null,
+   "budget": 3000.0,
+   "budget_scope": "production_line",
+   "decision": "blocked",
+   "reasons": [
+    "$890.00 is more than the $500.00 left in line_2's budget this month."
+   ],
+   "remaining": 500.0,
+   "scope_key": "line_2",
+   "spent": 2500,
+   "total": 890.0
+  },
+  "previous_attempt": null,
+  "proposal": {
+   "lead_days": 3,
+   "name": "Loom main drive motor 7.5 kW (SUMO)",
+   "qty": 1,
+   "rationale": "scenario pick",
+   "sku": "MTR-DRV-OMNI",
+   "supplier_id": "SUP-02",
+   "supplier_name": "Precision Loom Parts Co",
+   "supplier_score": 93.6,
+   "total": 890.0,
+   "unit_price": 890.0
+  },
+  "replan_count": 0,
+  "status": "blocked"
+ },
+ "escalates_without_manager": {
+  "approver_id": "u-owner-1",
+  "approver_role": "owner",
+  "candidates": [
+   "MTR-DRV-OMNI"
+  ],
+  "decided_by": null,
+  "eligible": [],
+  "inventory_hit": null,
+  "message": null,
+  "model_calls": [
+   "Need",
+   "Choice"
+  ],
+  "need": {
+   "item_need": "drive motor",
+   "machine_id": "L-03",
+   "qty": 1,
+   "search_terms": [
+    "drive motor"
+   ],
+   "urgency": "line_down"
+  },
+  "options": [
+   {
+    "lead_days": 6,
+    "option_id": "opt-1",
+    "reliability": {
+     "avg_days_late": 0.2,
+     "defect_rate": 0.046,
+     "low_confidence": false,
+     "on_time_rate": 0.891,
+     "orders": 200,
+     "score": 88.2
+    },
+    "sku": "MTR-DRV-OMNI",
+    "supplier_id": "SUP-03",
+    "unit_price": 860.0
+   },
+   {
+    "lead_days": 3,
+    "option_id": "opt-2",
+    "reliability": {
+     "avg_days_late": 0.11,
+     "defect_rate": 0.023,
+     "low_confidence": false,
+     "on_time_rate": 0.936,
+     "orders": 120,
+     "score": 93.6
+    },
+    "sku": "MTR-DRV-OMNI",
+    "supplier_id": "SUP-02",
+    "unit_price": 890.0
+   }
+  ],
+  "orders": [],
+  "paid": null,
+  "paused": {
+   "approver_id": "u-owner-1",
+   "status": "awaiting_approval"
+  },
+  "payments": 0,
+  "policy_result": {
+   "approver_role": "maintenance_manager",
+   "budget": 3000.0,
+   "budget_scope": "production_line",
+   "decision": "needs_approval",
+   "reasons": [
+    "$890.00 needs maintenance manager approval (up to $1,500.00)."
+   ],
+   "remaining": 3000.0,
+   "scope_key": "line_2",
+   "spent": 0,
+   "total": 890.0
+  },
+  "previous_attempt": null,
+  "proposal": {
+   "lead_days": 3,
+   "name": "Loom main drive motor 7.5 kW (SUMO)",
+   "qty": 1,
+   "rationale": "scenario pick",
+   "sku": "MTR-DRV-OMNI",
+   "supplier_id": "SUP-02",
+   "supplier_name": "Precision Loom Parts Co",
+   "supplier_score": 93.6,
+   "total": 890.0,
+   "unit_price": 890.0
+  },
+  "replan_count": 0,
+  "status": "awaiting_approval"
+ },
+ "exact_auto_limit": {
+  "approver_id": null,
+  "approver_role": null,
+  "candidates": [
+   "VB-B52"
+  ],
+  "decided_by": null,
+  "eligible": [],
+  "inventory_hit": null,
+  "message": "Ordered 20 x V-belt B52 from National Bearings & Belts for $150.00.",
+  "model_calls": [
+   "Need",
+   "Choice"
+  ],
+  "need": {
+   "item_need": "V-belts",
+   "machine_id": null,
+   "qty": 20,
+   "search_terms": [
+    "V-belt B52"
+   ],
+   "urgency": "this_week"
+  },
+  "options": [
+   {
+    "lead_days": 1,
+    "option_id": "opt-1",
+    "reliability": {
+     "avg_days_late": 0.2,
+     "defect_rate": 0.046,
+     "low_confidence": false,
+     "on_time_rate": 0.891,
+     "orders": 200,
+     "score": 88.2
+    },
+    "sku": "VB-B52",
+    "supplier_id": "SUP-03",
+    "unit_price": 7.5
+   }
+  ],
+  "orders": [
+   {
+    "scope_key": "general",
+    "total": 150.0
+   }
+  ],
+  "paid": 150.0,
+  "paused": {
+   "approver_id": null,
+   "status": "executed"
+  },
+  "payments": 1,
+  "policy_result": {
+   "approver_role": "none",
+   "budget": 1500.0,
+   "budget_scope": "production_line",
+   "decision": "auto_approve",
+   "reasons": [
+    "$150.00 is within the $150.00 auto-approve limit and the general budget."
+   ],
+   "remaining": 1500.0,
+   "scope_key": "general",
+   "spent": 0,
+   "total": 150.0
+  },
+  "previous_attempt": null,
+  "proposal": {
+   "lead_days": 1,
+   "name": "V-belt B52",
+   "qty": 20,
+   "rationale": "scenario pick",
+   "sku": "VB-B52",
+   "supplier_id": "SUP-03",
+   "supplier_name": "National Bearings & Belts",
+   "supplier_score": 88.2,
+   "total": 150.0,
+   "unit_price": 7.5
+  },
+  "replan_count": 0,
+  "status": "executed"
+ },
+ "general_budget": {
+  "approver_id": null,
+  "approver_role": null,
+  "candidates": [
+   "BRG-6305-ZZ"
+  ],
+  "decided_by": null,
+  "eligible": [],
+  "inventory_hit": null,
+  "message": "Ordered 4 x Ball bearing 6305-ZZ from National Bearings & Belts for $23.60.",
+  "model_calls": [
+   "Need",
+   "Choice"
+  ],
+  "need": {
+   "item_need": "6305 bearings",
+   "machine_id": null,
+   "qty": 4,
+   "search_terms": [
+    "6305"
+   ],
+   "urgency": "restock"
+  },
+  "options": [
+   {
+    "lead_days": 2,
+    "option_id": "opt-1",
+    "reliability": {
+     "avg_days_late": 0.2,
+     "defect_rate": 0.046,
+     "low_confidence": false,
+     "on_time_rate": 0.891,
+     "orders": 200,
+     "score": 88.2
+    },
+    "sku": "BRG-6305-ZZ",
+    "supplier_id": "SUP-03",
+    "unit_price": 5.9
+   }
+  ],
+  "orders": [
+   {
+    "scope_key": "general",
+    "total": 23.6
+   }
+  ],
+  "paid": 23.6,
+  "paused": {
+   "approver_id": null,
+   "status": "executed"
+  },
+  "payments": 1,
+  "policy_result": {
+   "approver_role": "none",
+   "budget": 1500.0,
+   "budget_scope": "production_line",
+   "decision": "auto_approve",
+   "reasons": [
+    "$23.60 is within the $150.00 auto-approve limit and the general budget."
+   ],
+   "remaining": 1500.0,
+   "scope_key": "general",
+   "spent": 0,
+   "total": 23.6
+  },
+  "previous_attempt": null,
+  "proposal": {
+   "lead_days": 2,
+   "name": "Ball bearing 6305-ZZ",
+   "qty": 4,
+   "rationale": "scenario pick",
+   "sku": "BRG-6305-ZZ",
+   "supplier_id": "SUP-03",
+   "supplier_name": "National Bearings & Belts",
+   "supplier_score": 88.2,
+   "total": 23.6,
+   "unit_price": 5.9
+  },
+  "replan_count": 0,
+  "status": "executed"
+ },
+ "general_budget_exhausted": {
+  "approver_id": null,
+  "approver_role": null,
+  "candidates": [
+   "BRG-6305-ZZ"
+  ],
+  "decided_by": null,
+  "eligible": [],
+  "inventory_hit": null,
+  "message": "Not purchased. $23.60 is more than the $1.00 left in general's budget this month. I looked for another option within policy and none fits.",
+  "model_calls": [
+   "Need",
+   "Choice"
+  ],
+  "need": {
+   "item_need": "6305 bearings",
+   "machine_id": null,
+   "qty": 4,
+   "search_terms": [
+    "6305"
+   ],
+   "urgency": "restock"
+  },
+  "options": [
+   {
+    "lead_days": 2,
+    "option_id": "opt-1",
+    "reliability": {
+     "avg_days_late": 0.2,
+     "defect_rate": 0.046,
+     "low_confidence": false,
+     "on_time_rate": 0.891,
+     "orders": 200,
+     "score": 88.2
+    },
+    "sku": "BRG-6305-ZZ",
+    "supplier_id": "SUP-03",
+    "unit_price": 5.9
+   }
+  ],
+  "orders": [],
+  "paid": null,
+  "paused": {
+   "approver_id": null,
+   "status": "blocked"
+  },
+  "payments": 0,
+  "policy_result": {
+   "approver_role": null,
+   "budget": 1500.0,
+   "budget_scope": "production_line",
+   "decision": "blocked",
+   "reasons": [
+    "$23.60 is more than the $1.00 left in general's budget this month."
+   ],
+   "remaining": 1.0,
+   "scope_key": "general",
+   "spent": 1499,
+   "total": 23.6
+  },
+  "previous_attempt": {
+   "proposal": {
+    "qty": 4,
+    "sku": "BRG-6305-ZZ",
+    "supplier_id": "SUP-03",
+    "total": 23.6
+   },
+   "reasons": [
+    "$23.60 is more than the $1.00 left in general's budget this month."
+   ]
+  },
+  "proposal": {
+   "lead_days": 2,
+   "name": "Ball bearing 6305-ZZ",
+   "qty": 4,
+   "rationale": "scenario pick",
+   "sku": "BRG-6305-ZZ",
+   "supplier_id": "SUP-03",
+   "supplier_name": "National Bearings & Belts",
+   "supplier_score": 88.2,
+   "total": 23.6,
+   "unit_price": 5.9
+  },
+  "replan_count": 1,
+  "status": "blocked"
+ },
+ "manager_approves": {
+  "approver_id": "u-mm-1",
+  "approver_role": "maintenance_manager",
+  "candidates": [
+   "MTR-DRV-OMNI"
+  ],
+  "decided_by": "u-mm-1",
+  "eligible": [],
+  "inventory_hit": null,
+  "message": "Ordered 1 x Loom main drive motor 7.5 kW (SUMO) from Precision Loom Parts Co for $890.00.",
+  "model_calls": [
+   "Need",
+   "Choice"
+  ],
+  "need": {
+   "item_need": "drive motor",
+   "machine_id": "L-03",
+   "qty": 1,
+   "search_terms": [
+    "drive motor"
+   ],
+   "urgency": "line_down"
+  },
+  "options": [
+   {
+    "lead_days": 6,
+    "option_id": "opt-1",
+    "reliability": {
+     "avg_days_late": 0.2,
+     "defect_rate": 0.046,
+     "low_confidence": false,
+     "on_time_rate": 0.891,
+     "orders": 200,
+     "score": 88.2
+    },
+    "sku": "MTR-DRV-OMNI",
+    "supplier_id": "SUP-03",
+    "unit_price": 860.0
+   },
+   {
+    "lead_days": 3,
+    "option_id": "opt-2",
+    "reliability": {
+     "avg_days_late": 0.11,
+     "defect_rate": 0.023,
+     "low_confidence": false,
+     "on_time_rate": 0.936,
+     "orders": 120,
+     "score": 93.6
+    },
+    "sku": "MTR-DRV-OMNI",
+    "supplier_id": "SUP-02",
+    "unit_price": 890.0
+   }
+  ],
+  "orders": [
+   {
+    "scope_key": "line_2",
+    "total": 890.0
+   }
+  ],
+  "paid": 890.0,
+  "paused": {
+   "approver_id": "u-mm-1",
+   "status": "awaiting_approval"
+  },
+  "payments": 1,
+  "policy_result": {
+   "approver_role": "maintenance_manager",
+   "budget": 3000.0,
+   "budget_scope": "production_line",
+   "decision": "needs_approval",
+   "reasons": [
+    "$890.00 needs maintenance manager approval (up to $1,500.00)."
+   ],
+   "remaining": 3000.0,
+   "scope_key": "line_2",
+   "spent": 0,
+   "total": 890.0
+  },
+  "previous_attempt": null,
+  "proposal": {
+   "lead_days": 3,
+   "name": "Loom main drive motor 7.5 kW (SUMO)",
+   "qty": 1,
+   "rationale": "scenario pick",
+   "sku": "MTR-DRV-OMNI",
+   "supplier_id": "SUP-02",
+   "supplier_name": "Precision Loom Parts Co",
+   "supplier_score": 93.6,
+   "total": 890.0,
+   "unit_price": 890.0
+  },
+  "replan_count": 0,
+  "status": "executed"
+ },
+ "no_match": {
+  "approver_id": null,
+  "approver_role": null,
+  "candidates": [],
+  "decided_by": null,
+  "eligible": [],
+  "inventory_hit": null,
+  "message": "Nothing in stock and no approved supplier carries anything matching 'espresso machine'.",
+  "model_calls": [
+   "Need"
+  ],
+  "need": {
+   "item_need": "espresso machine",
+   "machine_id": null,
+   "qty": 1,
+   "search_terms": [
+    "espresso"
+   ],
+   "urgency": "restock"
+  },
+  "options": [],
+  "orders": [],
+  "paid": null,
+  "paused": {
+   "approver_id": null,
+   "status": "no_match"
+  },
+  "payments": 0,
+  "policy_result": null,
+  "previous_attempt": null,
+  "proposal": null,
+  "replan_count": 0,
+  "status": "no_match"
+ },
+ "nobody_to_approve": {
+  "approver_id": null,
+  "approver_role": "maintenance_manager",
+  "candidates": [
+   "MTR-DRV-OMNI"
+  ],
+  "decided_by": null,
+  "eligible": [],
+  "inventory_hit": null,
+  "message": "Not purchased. $890.00 needs maintenance manager approval (up to $1,500.00).",
+  "model_calls": [
+   "Need",
+   "Choice"
+  ],
+  "need": {
+   "item_need": "drive motor",
+   "machine_id": "L-03",
+   "qty": 1,
+   "search_terms": [
+    "drive motor"
+   ],
+   "urgency": "line_down"
+  },
+  "options": [
+   {
+    "lead_days": 6,
+    "option_id": "opt-1",
+    "reliability": {
+     "avg_days_late": 0.2,
+     "defect_rate": 0.046,
+     "low_confidence": false,
+     "on_time_rate": 0.891,
+     "orders": 200,
+     "score": 88.2
+    },
+    "sku": "MTR-DRV-OMNI",
+    "supplier_id": "SUP-03",
+    "unit_price": 860.0
+   },
+   {
+    "lead_days": 3,
+    "option_id": "opt-2",
+    "reliability": {
+     "avg_days_late": 0.11,
+     "defect_rate": 0.023,
+     "low_confidence": false,
+     "on_time_rate": 0.936,
+     "orders": 120,
+     "score": 93.6
+    },
+    "sku": "MTR-DRV-OMNI",
+    "supplier_id": "SUP-02",
+    "unit_price": 890.0
+   }
+  ],
+  "orders": [],
+  "paid": null,
+  "paused": {
+   "approver_id": null,
+   "status": "blocked"
+  },
+  "payments": 0,
+  "policy_result": {
+   "approver_role": "maintenance_manager",
+   "budget": 3000.0,
+   "budget_scope": "production_line",
+   "decision": "needs_approval",
+   "reasons": [
+    "$890.00 needs maintenance manager approval (up to $1,500.00)."
+   ],
+   "remaining": 3000.0,
+   "scope_key": "line_2",
+   "spent": 0,
+   "total": 890.0
+  },
+  "previous_attempt": null,
+  "proposal": {
+   "lead_days": 3,
+   "name": "Loom main drive motor 7.5 kW (SUMO)",
+   "qty": 1,
+   "rationale": "scenario pick",
+   "sku": "MTR-DRV-OMNI",
+   "supplier_id": "SUP-02",
+   "supplier_name": "Precision Loom Parts Co",
+   "supplier_score": 93.6,
+   "total": 890.0,
+   "unit_price": 890.0
+  },
+  "replan_count": 0,
+  "status": "blocked"
+ },
+ "owner_approves": {
+  "approver_id": "u-owner-1",
+  "approver_role": "owner",
+  "candidates": [
+   "MTR-DRV-OMNI"
+  ],
+  "decided_by": "u-owner-1",
+  "eligible": [],
+  "inventory_hit": null,
+  "message": "Ordered 2 x Loom main drive motor 7.5 kW (SUMO) from Precision Loom Parts Co for $1,780.00.",
+  "model_calls": [
+   "Need",
+   "Choice"
+  ],
+  "need": {
+   "item_need": "drive motor",
+   "machine_id": "L-03",
+   "qty": 2,
+   "search_terms": [
+    "drive motor"
+   ],
+   "urgency": "line_down"
+  },
+  "options": [
+   {
+    "lead_days": 6,
+    "option_id": "opt-1",
+    "reliability": {
+     "avg_days_late": 0.2,
+     "defect_rate": 0.046,
+     "low_confidence": false,
+     "on_time_rate": 0.891,
+     "orders": 200,
+     "score": 88.2
+    },
+    "sku": "MTR-DRV-OMNI",
+    "supplier_id": "SUP-03",
+    "unit_price": 860.0
+   },
+   {
+    "lead_days": 3,
+    "option_id": "opt-2",
+    "reliability": {
+     "avg_days_late": 0.11,
+     "defect_rate": 0.023,
+     "low_confidence": false,
+     "on_time_rate": 0.936,
+     "orders": 120,
+     "score": 93.6
+    },
+    "sku": "MTR-DRV-OMNI",
+    "supplier_id": "SUP-02",
+    "unit_price": 890.0
+   }
+  ],
+  "orders": [
+   {
+    "scope_key": "line_2",
+    "total": 1780.0
+   }
+  ],
+  "paid": 1780.0,
+  "paused": {
+   "approver_id": "u-owner-1",
+   "status": "awaiting_approval"
+  },
+  "payments": 1,
+  "policy_result": {
+   "approver_role": "owner",
+   "budget": 5000,
+   "budget_scope": "production_line",
+   "decision": "needs_approval",
+   "reasons": [
+    "$1,780.00 needs owner approval (above every lower tier)."
+   ],
+   "remaining": 4000,
+   "scope_key": "line_2",
+   "spent": 1000,
+   "total": 1780.0
+  },
+  "previous_attempt": null,
+  "proposal": {
+   "lead_days": 3,
+   "name": "Loom main drive motor 7.5 kW (SUMO)",
+   "qty": 2,
+   "rationale": "scenario pick",
+   "sku": "MTR-DRV-OMNI",
+   "supplier_id": "SUP-02",
+   "supplier_name": "Precision Loom Parts Co",
+   "supplier_score": 93.6,
+   "total": 1780.0,
+   "unit_price": 890.0
+  },
+  "replan_count": 0,
+  "status": "executed"
+ },
+ "rejected": {
+  "approver_id": "u-mm-1",
+  "approver_role": "maintenance_manager",
+  "candidates": [
+   "MTR-DRV-OMNI"
+  ],
+  "decided_by": "u-mm-1",
+  "eligible": [],
+  "inventory_hit": null,
+  "message": "Rejected by the approver. Nothing was purchased.",
+  "model_calls": [
+   "Need",
+   "Choice"
+  ],
+  "need": {
+   "item_need": "drive motor",
+   "machine_id": "L-03",
+   "qty": 1,
+   "search_terms": [
+    "drive motor"
+   ],
+   "urgency": "line_down"
+  },
+  "options": [
+   {
+    "lead_days": 6,
+    "option_id": "opt-1",
+    "reliability": {
+     "avg_days_late": 0.2,
+     "defect_rate": 0.046,
+     "low_confidence": false,
+     "on_time_rate": 0.891,
+     "orders": 200,
+     "score": 88.2
+    },
+    "sku": "MTR-DRV-OMNI",
+    "supplier_id": "SUP-03",
+    "unit_price": 860.0
+   },
+   {
+    "lead_days": 3,
+    "option_id": "opt-2",
+    "reliability": {
+     "avg_days_late": 0.11,
+     "defect_rate": 0.023,
+     "low_confidence": false,
+     "on_time_rate": 0.936,
+     "orders": 120,
+     "score": 93.6
+    },
+    "sku": "MTR-DRV-OMNI",
+    "supplier_id": "SUP-02",
+    "unit_price": 890.0
+   }
+  ],
+  "orders": [],
+  "paid": null,
+  "paused": {
+   "approver_id": "u-mm-1",
+   "status": "awaiting_approval"
+  },
+  "payments": 0,
+  "policy_result": {
+   "approver_role": "maintenance_manager",
+   "budget": 3000.0,
+   "budget_scope": "production_line",
+   "decision": "needs_approval",
+   "reasons": [
+    "$890.00 needs maintenance manager approval (up to $1,500.00)."
+   ],
+   "remaining": 3000.0,
+   "scope_key": "line_2",
+   "spent": 0,
+   "total": 890.0
+  },
+  "previous_attempt": null,
+  "proposal": {
+   "lead_days": 3,
+   "name": "Loom main drive motor 7.5 kW (SUMO)",
+   "qty": 1,
+   "rationale": "scenario pick",
+   "sku": "MTR-DRV-OMNI",
+   "supplier_id": "SUP-02",
+   "supplier_name": "Precision Loom Parts Co",
+   "supplier_score": 93.6,
+   "total": 890.0,
+   "unit_price": 890.0
+  },
+  "replan_count": 0,
+  "status": "rejected"
+ },
+ "storeroom_hit": {
+  "approver_id": null,
+  "approver_role": null,
+  "candidates": [
+   "BRG-6205-2RS"
+  ],
+  "decided_by": null,
+  "eligible": [],
+  "inventory_hit": {
+   "location": "Storeroom A, bin 14",
+   "name": "Ball bearing 6205-2RS",
+   "on_hand": 12,
+   "qty": 2,
+   "sku": "BRG-6205-2RS"
+  },
+  "message": "In stock: 2 x Ball bearing 6205-2RS reserved from Storeroom A, bin 14 (12 on hand). Nothing to buy.",
+  "model_calls": [
+   "Need"
+  ],
+  "need": {
+   "item_need": "6205 bearings",
+   "machine_id": "S-04",
+   "qty": 2,
+   "search_terms": [
+    "6205 bearing"
+   ],
+   "urgency": "line_down"
+  },
+  "options": [],
+  "orders": [],
+  "paid": null,
+  "paused": {
+   "approver_id": null,
+   "status": "reserved"
+  },
+  "payments": 0,
+  "policy_result": null,
+  "previous_attempt": null,
+  "proposal": null,
+  "replan_count": 0,
+  "status": "reserved"
+ },
+ "storeroom_short": {
+  "approver_id": "u-mm-1",
+  "approver_role": "maintenance_manager",
+  "candidates": [
+   "BRG-6205-2RS"
+  ],
+  "decided_by": null,
+  "eligible": [],
+  "inventory_hit": null,
+  "message": null,
+  "model_calls": [
+   "Need",
+   "Choice"
+  ],
+  "need": {
+   "item_need": "6205 bearings",
+   "machine_id": "S-04",
+   "qty": 50,
+   "search_terms": [
+    "6205 bearing"
+   ],
+   "urgency": "line_down"
+  },
+  "options": [
+   {
+    "lead_days": 1,
+    "option_id": "opt-1",
+    "reliability": {
+     "avg_days_late": 0.2,
+     "defect_rate": 0.046,
+     "low_confidence": false,
+     "on_time_rate": 0.891,
+     "orders": 200,
+     "score": 88.2
+    },
+    "sku": "BRG-6205-2RS",
+    "supplier_id": "SUP-03",
+    "unit_price": 3.8
+   }
+  ],
+  "orders": [],
+  "paid": null,
+  "paused": {
+   "approver_id": "u-mm-1",
+   "status": "awaiting_approval"
+  },
+  "payments": 0,
+  "policy_result": {
+   "approver_role": "maintenance_manager",
+   "budget": 2500.0,
+   "budget_scope": "production_line",
+   "decision": "needs_approval",
+   "reasons": [
+    "$190.00 needs maintenance manager approval (up to $1,500.00)."
+   ],
+   "remaining": 2500.0,
+   "scope_key": "line_1",
+   "spent": 0,
+   "total": 190.0
+  },
+  "previous_attempt": null,
+  "proposal": {
+   "lead_days": 1,
+   "name": "Ball bearing 6205-2RS",
+   "qty": 50,
+   "rationale": "scenario pick",
+   "sku": "BRG-6205-2RS",
+   "supplier_id": "SUP-03",
+   "supplier_name": "National Bearings & Belts",
+   "supplier_score": 88.2,
+   "total": 190.0,
+   "unit_price": 3.8
+  },
+  "replan_count": 0,
+  "status": "awaiting_approval"
+ }
+}

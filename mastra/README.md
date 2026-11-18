@@ -33,16 +33,25 @@ version stays as the reference.
   - A per-request lock makes a double click resume once, and the payment idempotency key backs it up.
   - One difference: `/health` is Mastra's built-in route and answers `{"success": true}`.
   - Studio (`npm run dev`) shows the run fan out, pause and resume.
-- Next: Phase 3, the remaining parity tests (most of the Day 2 behavior tests are already ported).
+- **Phase 3 (done):** parity with the Python backend, checked two ways.
+  - Unit level: `test/parity.test.ts` (scores and policy, about 700 cases).
+  - Behavior level: `test/behavior.test.ts` runs 17 shared scenarios (`test/fixtures/scenarios.json`)
+    through both frameworks with the same fake model. It requires identical outcomes: status,
+    options and scores, proposal, policy result, replan, approver, payment, message, which model
+    calls ran, and what reached the ledger. The scenarios cover every behavior in the plan:
+    approval tiers, storeroom hit, blocked then replan then explain, rejection, and policy changing
+    during the pause.
+  - The restart and resume-twice tests are in `test/workflow/durable.test.ts`.
 
 ## Parity with Python
 
+`test/behavior.test.ts` checks whole runs against the Python graph (see Phase 3).
 `test/parity.test.ts` checks that the TS port returns exactly what the Python
 code returns, byte for byte, including reason strings and rounding. The
 reference outputs come from Python:
 
 ```bash
-npm run parity      # runs scripts/export_parity.py; needs the backend's Python deps
+npm run parity      # re-export both fixtures from Python; needs the backend's Python deps
 ```
 
 That script also writes `packs/<pack>/seed_history.json`, the seed order history
