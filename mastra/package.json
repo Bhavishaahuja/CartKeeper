@@ -1,0 +1,31 @@
+{
+  "name": "cartkeeper-mastra",
+  "version": "1.0.0",
+  "description": "CartKeeper purchase workflow on Mastra (TypeScript port of the LangGraph backend).",
+  "private": true,
+  "scripts": {
+    "dev": "mastra dev",
+    "build": "mastra build",
+    "start": "mastra start",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "parity": "cd .. && python mastra/scripts/export_parity.py"
+  },
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "dependencies": {
+    "@mastra/core": "1.85.0",
+    "@mastra/libsql": "1.31.1",
+    "yaml": "^2.9.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "mastra": "1.40.1",
+    "typescript": "^6.0.3",
+    "vitest": "^3.2.7"
+  }
+}
