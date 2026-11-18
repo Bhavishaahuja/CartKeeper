@@ -12,7 +12,20 @@ version stays as the reference.
   - `src/core/score.ts` has the CartLens supplier scores with shrinkage toward the pooled rate.
   - `src/core/policy.ts` is the policy gate. The model proposes; this decides.
   - `src/core/history.ts` aggregates order history into the inputs for scoring.
-- Next: Phase 1, the purchase workflow (`createWorkflow` / `createStep`, suspend and resume for approval).
+- **Phase 1 (done):** the purchase workflow, in `src/purchase/`.
+  - `workflow.ts` maps each LangGraph node to a Mastra step (the diagram is at the top of the file).
+    - Supplier quotes fan out in `.parallel()` with a `.foreach()`.
+    - Propose, policy check and replan form a nested workflow looped by `.dountil()`, at most two rounds.
+    - The outcomes are a `.branch()`.
+    - The approval wait is a `suspend()` with `suspendSchema` and `resumeSchema`.
+  - `steps.ts` is the node logic, ported line by line from `nodes.py`.
+  - `model.ts` holds the only two model calls: read a request into a Need, and pick one option id. Neither
+    schema can carry a price, a total or a decision. In production these go through the
+    `intake-agent` and `propose-agent` (no tools, structured output); tests use a fake.
+  - `service.ts` is start / decide / snapshot. The request id is the run id, and every view is read
+    back from storage, so a paused request looks the same after a restart.
+  - `execute` re-checks policy before paying and pays with the idempotency key `ck-<runId>-execute`.
+- Next: Phase 2, HTTP routes matching the FastAPI contract.
 
 ## Parity with Python
 
@@ -31,11 +44,21 @@ again whenever `score.py`, `policy.py` or the pack's seed history changes.
 `src/core/pyfmt.ts` holds the rounding helpers. Python rounds exact ties to
 even, and JS `toFixed` rounds them up.
 
+## Storage
+
+Paused runs live in Mastra storage. With `DATABASE_URL` set (Supabase: use the Session pooler URL)
+that is Postgres. Without it, it is a local LibSQL file. Budgets, members and orders are still in
+memory, as in the Python Day 2 backend.
+
+`test/workflow/durable.test.ts` pauses a request, closes the storage, then approves it from a new
+Mastra instance with a new connection. It always runs on LibSQL, and also on Postgres when
+`CARTKEEPER_TEST_DATABASE_URL` is set.
+
 ## Commands
 
 ```bash
 npm install
 npm test            # vitest
 npm run typecheck
-npm run dev         # Studio at http://localhost:4111
+npm run dev         # Studio at http://localhost:4111 (needs CARTKEEPER_ANTHROPIC_API_KEY to run requests)
 ```

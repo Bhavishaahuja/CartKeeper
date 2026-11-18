@@ -1,16 +1,37 @@
 import { Mastra } from '@mastra/core/mastra';
-import { LibSQLStore } from '@mastra/libsql';
+import { supplierScoresFromSeed } from '../core/history';
+import { loadPack } from '../core/packs';
+import { StubPayments } from '../core/payments';
+import { InMemoryStore } from '../core/store';
+import { agentModel } from '../purchase/model';
+import { createPurchaseWorkflow } from '../purchase/workflow';
+import { intakeAgent, proposeAgent } from './agents';
+import { makeStorage } from './storage';
 
 /**
- * CartKeeper on Mastra.
+ * CartKeeper on Mastra: the purchase workflow, its two agents, and durable
+ * storage for runs paused on approval (Postgres when DATABASE_URL is set).
  *
- * Phase 0 ports the deterministic core (pack loading, CartLens supplier scores,
- * the policy gate) in src/core. The purchase workflow, agents and Postgres
- * storage arrive in Phase 1; until then Studio runs on a local LibSQL file.
+ * Budgets, members and orders are in memory for now, as in the Python Day 2
+ * backend, so they reset on restart; paused runs do not.
  */
+
+export const PACK_KEY = process.env.CARTKEEPER_PACK ?? 'manufacturing_textile';
+
+const pack = loadPack(PACK_KEY);
+export const store = InMemoryStore.fromDemo(pack);
+export const payments = new StubPayments();
+
+export const purchase = createPurchaseWorkflow({
+  pack,
+  store,
+  payments,
+  model: agentModel(intakeAgent, proposeAgent),
+  supplierScores: supplierScoresFromSeed(pack),
+});
+
 export const mastra = new Mastra({
-  storage: new LibSQLStore({
-    id: 'cartkeeper-storage',
-    url: process.env.CARTKEEPER_MASTRA_DB_URL ?? 'file:./mastra.db',
-  }),
+  agents: { intakeAgent, proposeAgent },
+  workflows: { purchase },
+  storage: makeStorage(),
 });
