@@ -43,6 +43,10 @@ export class PurchaseService {
     const run = await this.workflow.createRun({ runId: requestId });
     await run.start({
       inputData: { request_id: requestId, requester_id: opts.requesterId ?? null, raw_request: rawRequest },
+      tracingOptions: {
+        tags: ['cartkeeper', 'purchase'],
+        metadata: { request_id: requestId, requester_id: opts.requesterId ?? null },
+      },
     });
     return (await this.snapshot(requestId))!;
   }
@@ -60,7 +64,13 @@ export class PurchaseService {
     const state = await this.workflow.getWorkflowRunById(requestId);
     const suspended = createWorkflowStateReader(state!).getSuspendedStep()!;
     const run = await this.workflow.createRun({ runId: requestId });
-    await run.resume({ step: suspended.path, resumeData: parsed.data });
+    await run.resume({
+      step: suspended.path,
+      resumeData: parsed.data,
+      tracingOptions: {
+        metadata: { request_id: requestId, approval: parsed.data.approval, decided_by: parsed.data.decided_by },
+      },
+    });
     return (await this.snapshot(requestId))!;
   }
 

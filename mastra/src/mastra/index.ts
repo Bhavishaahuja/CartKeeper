@@ -7,6 +7,7 @@ import { InMemoryStore } from '../core/store';
 import { agentModel } from '../purchase/model';
 import { createPurchaseWorkflow } from '../purchase/workflow';
 import { intakeAgent, proposeAgent } from './agents';
+import { makeObservability } from './observability';
 import { makeStorage } from './storage';
 
 /**
@@ -35,5 +36,6 @@ export const mastra = new Mastra({
   agents: { intakeAgent, proposeAgent },
   workflows: { purchase },
   storage: makeStorage(),
+  observability: makeObservability(),
   server: { apiRoutes: cartkeeperRoutes({ pack, store }) },
 });

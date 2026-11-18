@@ -8,6 +8,7 @@
  */
 
 import type { Agent } from '@mastra/core/agent';
+import type { TracingContext } from '@mastra/core/observability';
 import { z } from 'zod';
 import type { Pack } from '../core/packs';
 
@@ -37,6 +38,8 @@ export interface ModelCall {
   system: string;
   /** The user message: the raw request, or the JSON context of options. */
   user: string;
+  /** The calling step's tracing context, so the agent run nests under the step in the request's trace. */
+  tracingContext?: TracingContext;
 }
 
 /**
@@ -54,6 +57,7 @@ export function agentModel(intakeAgent: Agent, proposeAgent: Agent): PurchaseMod
   const run = async (agent: Agent, call: ModelCall, schema: z.ZodType) => {
     const response = await agent.generate(call.user, {
       instructions: call.system,
+      tracingContext: call.tracingContext,
       structuredOutput: { schema, errorStrategy: 'strict' },
     });
     return response.object;

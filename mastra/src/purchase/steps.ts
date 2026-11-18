@@ -8,6 +8,7 @@
  */
 
 import { setTimeout as sleep } from 'node:timers/promises';
+import type { TracingContext } from '@mastra/core/observability';
 import type { CatalogItem, Pack } from '../core/packs';
 import type { Payments } from '../core/payments';
 import { checkPolicy, type PolicyResult } from '../core/policy';
@@ -31,6 +32,11 @@ export interface PurchaseDeps {
 }
 
 type Patch = Partial<Purchase>;
+
+/** What a step passes through from Mastra's execute params. */
+export interface StepContext {
+  tracingContext?: TracingContext;
+}
 
 /** Python repr() of a string, for messages that quote the user's words. */
 function pyRepr(s: string): string {
@@ -56,9 +62,12 @@ export function intakeSystemPrompt(pack: Pack): string {
   );
 }
 
-export async function intake(s: Purchase, { pack, model }: PurchaseDeps): Promise<Patch> {
+export async function intake(s: Purchase, { pack, model }: PurchaseDeps, ctx: StepContext = {}): Promise<Patch> {
   const schema = needSchema(pack);
-  const raw = await model.extractNeed({ system: intakeSystemPrompt(pack), user: s.raw_request }, schema);
+  const raw = await model.extractNeed(
+    { system: intakeSystemPrompt(pack), user: s.raw_request, tracingContext: ctx.tracingContext },
+    schema,
+  );
   const need = schema.parse(raw);
   return {
     need: {
@@ -223,7 +232,7 @@ export const PROPOSE_RETRY_SYSTEM =
   ' Your previous pick was blocked by company policy for the reasons in previous_attempt; ' +
   'the options left all pass those checks. Mention briefly why you switched.';
 
-export async function propose(s: Purchase, { pack, model }: PurchaseDeps): Promise<Patch> {
+export async function propose(s: Purchase, { pack, model }: PurchaseDeps, ctx: StepContext = {}): Promise<Patch> {
   const need = s.need!;
   const retrying = s.replan_count > 0;
   const quotes = (retrying ? s.eligible_quotes : s.scored_quotes) ?? [];
@@ -247,7 +256,9 @@ export async function propose(s: Purchase, { pack, model }: PurchaseDeps): Promi
   const system = PROPOSE_SYSTEM + (retrying ? PROPOSE_RETRY_SYSTEM : '');
 
   const schema = choiceSchema(quotes.map((q) => q.option_id));
-  const choice = schema.parse(await model.chooseOption({ system, user: JSON.stringify(context, null, 2) }, schema));
+  const choice = schema.parse(
+    await model.chooseOption({ system, user: JSON.stringify(context, null, 2), tracingContext: ctx.tracingContext }, schema),
+  );
 
   // Rebuild the proposal from catalog data. The model only chose an option id.
   const picked = quotes.find((q) => q.option_id === choice.option_id)!;

@@ -18,7 +18,9 @@
   },
   "dependencies": {
     "@mastra/core": "1.85.0",
+    "@mastra/langfuse": "^1.7.1",
     "@mastra/libsql": "1.31.1",
+    "@mastra/observability": "^1.24.2",
     "@mastra/pg": "^1.37.0",
     "yaml": "^2.9.1",
     "zod": "^4.4.3"

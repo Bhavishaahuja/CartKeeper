@@ -37,7 +37,7 @@ import type { PurchaseDeps } from './steps';
 export const PURCHASE_WORKFLOW_ID = 'purchase';
 export const MAX_PROPOSE_ROUNDS = S.MAX_REPLANS + 1;
 
-type StepFn = (s: Purchase, deps: PurchaseDeps) => Partial<Purchase> | Promise<Partial<Purchase>>;
+type StepFn = (s: Purchase, deps: PurchaseDeps, ctx: S.StepContext) => Partial<Purchase> | Promise<Partial<Purchase>>;
 
 /** The one branch that ran, from a `.branch()` output keyed by step id. */
 async function takenBranch({ inputData }: { inputData: Record<string, Purchase | undefined> }): Promise<Purchase> {
@@ -55,7 +55,7 @@ export function createPurchaseWorkflow(deps: PurchaseDeps) {
       description,
       inputSchema: PurchaseSchema,
       outputSchema: PurchaseSchema,
-      execute: async ({ inputData }) => ({ ...inputData, ...(await fn(inputData, deps)) }),
+      execute: async ({ inputData, tracingContext }) => ({ ...inputData, ...(await fn(inputData, deps, { tracingContext })) }),
     });
 
   // --- sourcing ----------------------------------------------------------------
@@ -65,10 +65,10 @@ export function createPurchaseWorkflow(deps: PurchaseDeps) {
     description: 'LLM: read the request into a structured need (pack urgencies and machines only).',
     inputSchema: StartInputSchema,
     outputSchema: PurchaseSchema,
-    execute: async ({ inputData, runId }) => {
+    execute: async ({ inputData, runId, tracingContext }) => {
       // The run id is the request id, so the payment idempotency key is tied to this run.
       const s: Purchase = { ...inputData, request_id: runId, replan_count: 0 };
-      return { ...s, ...(await S.intake(s, deps)) };
+      return { ...s, ...(await S.intake(s, deps, { tracingContext })) };
     },
   });
 

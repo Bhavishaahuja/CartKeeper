@@ -77,11 +77,13 @@ export interface Harness {
 export function harness(
   need: Record<string, unknown>,
   opts: {
-    model?: FakeModel;
+    /** A FakeModel (inspect `model.calls`), or any PurchaseModel such as agents on a mock model. */
+    model?: PurchaseModel;
     store?: InMemoryStore;
     payments?: StubPayments;
     storage?: LibSQLStore | MastraCompositeStore | unknown;
     quoteLatencyMs?: number;
+    observability?: unknown;
   } = {},
 ): Harness {
   const model = opts.model ?? makeModel(need);
@@ -100,6 +102,7 @@ export function harness(
     storage: (opts.storage ?? memoryStorage()) as LibSQLStore,
     logger: false,
     server: { apiRoutes: cartkeeperRoutes({ pack: pack(), store }) },
+    ...(opts.observability ? { observability: opts.observability as never } : {}),
   });
-  return { service: new PurchaseService(mastra), mastra, model, store, payments };
+  return { service: new PurchaseService(mastra), mastra, model: model as FakeModel, store, payments };
 }

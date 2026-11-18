@@ -42,6 +42,15 @@ version stays as the reference.
     approval tiers, storeroom hit, blocked then replan then explain, rejection, and policy changing
     during the pause.
   - The restart and resume-twice tests are in `test/workflow/durable.test.ts`.
+- **Phase 4 (done):** tracing, in `src/mastra/observability.ts`.
+  - One trace per request: every step, both agent runs and their model calls, the pause and the
+    resume.
+  - Traces are tagged with `request_id`, `requester_id`, and on resume `approval` / `decided_by`.
+  - They always go to Mastra storage (Studio's Observability tab), and to Langfuse when
+    `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` are set.
+  - `test/workflow/tracing.test.ts` checks the trace stays single across suspend and resume, also
+    when the resume runs in a new Mastra instance after a restart.
+  - Porting notes and rough edges for the writeup are in `NOTES.md`.
 
 ## Parity with Python
 
