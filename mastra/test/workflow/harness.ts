@@ -1,5 +1,6 @@
 /** Test harness: a fake model (port of backend/tests/fakes.py) and a fresh Mastra per test. */
 import { Mastra } from '@mastra/core/mastra';
+import { cartkeeperRoutes } from '../../src/api/routes';
 import { LibSQLStore } from '@mastra/libsql';
 import type { MastraCompositeStore } from '@mastra/core/storage';
 import { supplierScoresFromSeed } from '../../src/core/history';
@@ -98,6 +99,7 @@ export function harness(
     workflows: { purchase: workflow },
     storage: (opts.storage ?? memoryStorage()) as LibSQLStore,
     logger: false,
+    server: { apiRoutes: cartkeeperRoutes({ pack: pack(), store }) },
   });
   return { service: new PurchaseService(mastra), mastra, model, store, payments };
 }

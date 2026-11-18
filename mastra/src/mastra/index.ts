@@ -1,4 +1,5 @@
 import { Mastra } from '@mastra/core/mastra';
+import { cartkeeperRoutes } from '../api/routes';
 import { supplierScoresFromSeed } from '../core/history';
 import { loadPack } from '../core/packs';
 import { StubPayments } from '../core/payments';
@@ -34,4 +35,5 @@ export const mastra = new Mastra({
   agents: { intakeAgent, proposeAgent },
   workflows: { purchase },
   storage: makeStorage(),
+  server: { apiRoutes: cartkeeperRoutes({ pack, store }) },
 });

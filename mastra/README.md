@@ -25,7 +25,15 @@ version stays as the reference.
   - `service.ts` is start / decide / snapshot. The request id is the run id, and every view is read
     back from storage, so a paused request looks the same after a restart.
   - `execute` re-checks policy before paying and pays with the idempotency key `ck-<runId>-execute`.
-- Next: Phase 2, HTTP routes matching the FastAPI contract.
+- **Phase 2 (done):** the FastAPI contract as Mastra custom routes, in `src/api/routes.ts`.
+  - `POST /requests`, `GET /requests/:id`, `POST /requests/:id/decision` and `GET /approvals`, with
+    the same `X-User-Id` demo users, visibility rules, approver checks, status codes and
+    `{"detail": ...}` errors.
+  - `GET /approvals` reads the stored suspended runs, so an approver's inbox survives a restart.
+  - A per-request lock makes a double click resume once, and the payment idempotency key backs it up.
+  - One difference: `/health` is Mastra's built-in route and answers `{"success": true}`.
+  - Studio (`npm run dev`) shows the run fan out, pause and resume.
+- Next: Phase 3, the remaining parity tests (most of the Day 2 behavior tests are already ported).
 
 ## Parity with Python
 
@@ -53,6 +61,24 @@ memory, as in the Python Day 2 backend.
 `test/workflow/durable.test.ts` pauses a request, closes the storage, then approves it from a new
 Mastra instance with a new connection. It always runs on LibSQL, and also on Postgres when
 `CARTKEEPER_TEST_DATABASE_URL` is set.
+
+## Trying the API
+
+```bash
+curl -X POST localhost:4111/requests -H 'content-type: application/json' -H 'X-User-Id: u-tech-1' \
+  -d '{"raw_request": "Replace drive motor on loom L-03"}'
+```
+
+```bash
+curl localhost:4111/approvals -H 'X-User-Id: u-mm-1'
+```
+
+```bash
+curl -X POST localhost:4111/requests/<id>/decision -H 'content-type: application/json' \
+  -H 'X-User-Id: u-mm-1' -d '{"approval": "approved"}'
+```
+
+Demo users: `u-tech-1` (requester), `u-mm-1` (maintenance manager), `u-owner-1` (owner), `u-fin-1` (finance).
 
 ## Commands
 
