@@ -9,7 +9,8 @@
     "start": "mastra start",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "parity": "cd .. && python mastra/scripts/export_parity.py && python mastra/scripts/export_behavior.py"
+    "parity": "cd .. && python mastra/scripts/export_parity.py && python mastra/scripts/export_behavior.py",
+    "evals": "tsx src/evals/experiment.ts"
   },
   "license": "MIT",
   "type": "module",
@@ -18,6 +19,7 @@
   },
   "dependencies": {
     "@mastra/core": "1.85.0",
+    "@mastra/evals": "^1.10.11",
     "@mastra/langfuse": "^1.7.1",
     "@mastra/libsql": "1.31.1",
     "@mastra/observability": "^1.24.2",
@@ -31,6 +33,7 @@
     "@types/pg": "^8.23.1",
     "mastra": "1.40.1",
     "pg": "^8.23.1",
+    "tsx": "^4.20.6",
     "typescript": "^6.0.3",
     "vitest": "^3.2.7"
   }

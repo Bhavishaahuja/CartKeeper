@@ -17,7 +17,12 @@ edges in Mastra worth an issue. Each rough edge has where it showed up and how t
 3. **`.branch()` returns `{ [stepId]: output }`**, so every branch in this workflow is followed by a
    `.map()` that unwraps the one branch that ran (`takenBranch` in `src/purchase/workflow.ts`).
    LangGraph's shared state needs no equivalent.
-4. **Mastra's built-in workflow API can resume a run without the app's approval checks**
+4. **A scorer step that returns an array or `null` works in `scorer.run()` but fails to persist
+   in an experiment.** Score storage validates `preprocessStepResult` as a record. The error is only
+   logged (`Failed to save score ... expected record, received array`), and the experiment still
+   reports the score, so the stored record is missing without any visible failure. Wrapping the
+   result in an object fixes it (`src/evals/scorers.ts`).
+5. **Mastra's built-in workflow API can resume a run without the app's approval checks**
    (`/api/workflows/purchase/resume`). This needs auth or blocking before deployment.
 
 ## Mapped cleanly
@@ -27,6 +32,8 @@ edges in Mastra worth an issue. Each rough edge has where it showed up and how t
 - A suspended and resumed run stays a single trace, including when the resume happens in a new
   process (`test/workflow/tracing.test.ts`). The resumed root carries `resumedFromSpanId`.
 - `Send` fan-out maps to `.parallel()` plus `.foreach({ concurrency })`.
+- Datasets and experiments with an inline `task` fit an eval that needs per-item setup (a fresh
+  ledger, a simulated approver). The experiments show up in Studio for comparison.
 - The checkpointer maps to `PostgresStore` / `LibSQLStore`, with no setup call.
 
 ## Didn't map directly

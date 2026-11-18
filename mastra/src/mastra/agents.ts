@@ -19,31 +19,41 @@ export function apiKey(): string | undefined {
 }
 
 /** Resolved per call, so Studio boots without a key and the error says which variable to set. */
-function model() {
+function modelConfig(id: `${string}/${string}` = MODEL_ID) {
   const key = apiKey();
   if (!key) {
     throw new Error('No Anthropic API key. Set CARTKEEPER_ANTHROPIC_API_KEY (or ANTHROPIC_API_KEY) in .env.');
   }
   return {
-    id: MODEL_ID,
+    id,
     apiKey: key,
     // Pinned so an inherited ANTHROPIC_BASE_URL can't reroute the app's calls.
     url: process.env.CARTKEEPER_ANTHROPIC_BASE_URL ?? API_URL,
   };
 }
 
-export const intakeAgent = new Agent({
-  id: 'intake-agent',
-  name: 'Intake',
-  description: 'Reads a free-text purchase request from the floor into a structured need.',
-  instructions: 'You turn purchase requests from a factory floor into a structured need.',
-  model,
-});
+/** The two agents on a given model; experiments build one pair per model under test. */
+export function createAgents(modelId: `${string}/${string}` = MODEL_ID) {
+  const model = () => modelConfig(modelId);
+  return {
+    intakeAgent: new Agent({
+      id: 'intake-agent',
+      name: 'Intake',
+      description: 'Reads a free-text purchase request from the floor into a structured need.',
+      instructions: 'You turn purchase requests from a factory floor into a structured need.',
+      model,
+    }),
+    proposeAgent: new Agent({
+      id: 'propose-agent',
+      name: 'Propose',
+      description: 'Picks one option id from the quoted, scored options. It cannot set prices or decisions.',
+      instructions: 'You are the purchasing agent for a manufacturer. Pick the single best option for the need.',
+      model,
+    }),
+  };
+}
 
-export const proposeAgent = new Agent({
-  id: 'propose-agent',
-  name: 'Propose',
-  description: 'Picks one option id from the quoted, scored options. It cannot set prices or decisions.',
-  instructions: 'You are the purchasing agent for a manufacturer. Pick the single best option for the need.',
-  model,
-});
+/** A model config for any Anthropic model, with the app's key and pinned API URL. */
+export const anthropicModel = (modelId: `${string}/${string}`) => modelConfig(modelId);
+
+export const { intakeAgent, proposeAgent } = createAgents();

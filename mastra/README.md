@@ -51,6 +51,30 @@ version stays as the reference.
   - `test/workflow/tracing.test.ts` checks the trace stays single across suspend and resume, also
     when the resume runs in a new Mastra instance after a restart.
   - Porting notes and rough edges for the writeup are in `NOTES.md`.
+- **Phase 5 (done, real model runs pending a key):** evals, in `src/evals/`.
+  - `dataset.ts` has 30 labeled requests: line-down, storeroom, approval tiers, rejection, budget
+    blocks, unapproved suppliers, missing approvers, stale approvals and ambiguous requests. Each
+    is labeled with the need, first policy decision, approver, replan and final status. They are
+    stored as a Mastra dataset.
+  - `runner.ts` runs each item isolated (its own ledger, payments, storage and trace) and plays the
+    approver, including spend that lands during the wait.
+  - `scorers.ts` has five scorers:
+    - `intake-accuracy` (code)
+    - `supplier-choice` (code: under line_down, the most reliable offered supplier)
+    - `hitl-invariants` (code, read from the trace: paused when required, never paid without
+      approval, honored rejection, re-checked after the wait, replanned at most once, paid at most
+      once). Policy is recomputed independently from the pack, not read from the run.
+    - `decision-path` (code)
+    - `approver-explanation` (Mastra's rubric judge on the approval card an owner sees)
+  - `experiment.ts` runs each model several times as Mastra experiments (visible and comparable in
+    Studio). It reports a 95% bootstrap interval per scorer, resampling items, and the judge's
+    agreement with 10 hand-labeled calibration cards (`calibration.ts`).
+  - The tests check the evals themselves:
+    - an oracle model scores 1.0 on every code scorer, which validates the labels
+    - a cheapest-first model and a sloppy reader score lower on the right scorers
+    - deliberately broken runs trip each HITL invariant
+  - `evals/pipeline-check.md` is a scripted-model run showing the report format. It is not model
+    results.
 
 ## Parity with Python
 
@@ -97,6 +121,19 @@ curl -X POST localhost:4111/requests/<id>/decision -H 'content-type: application
 ```
 
 Demo users: `u-tech-1` (requester), `u-mm-1` (maintenance manager), `u-owner-1` (owner), `u-fin-1` (finance).
+
+## Evals
+
+```bash
+npm run evals                                              # sonnet and haiku, 3 runs each, opus as judge
+```
+
+```bash
+npm run evals -- --models oracle,cheapest,sloppy --no-judge   # scripted models, no API calls
+```
+
+Real runs need `CARTKEEPER_ANTHROPIC_API_KEY`. The report goes to `evals/results/latest.md`, with the
+raw numbers in a JSON file beside it.
 
 ## Commands
 
