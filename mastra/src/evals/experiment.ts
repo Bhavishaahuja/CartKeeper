@@ -6,6 +6,7 @@
  *   npm run evals                                    sonnet and haiku, 3 runs each (needs a key)
  *   npm run evals -- --models opus,sonnet --runs 5
  *   npm run evals -- --models oracle,cheapest,sloppy --no-judge   scripted, no API calls
+ *   npm run evals -- --calibrate-only                 judge vs hand labels on 10 cards only
  *
  * Results land in Mastra storage (Studio: Datasets > cartkeeper-purchases > Experiments)
  * and in evals/results/ as JSON and Markdown.
@@ -23,7 +24,7 @@ import { CALIBRATION_CARDS } from './calibration';
 import { EVAL_ITEMS, type EvalItem } from './dataset';
 import { cheapestModel, oracleModel, sloppyModel } from './models';
 import { runEvalItem } from './runner';
-import { CODE_SCORERS, createApproverExplanationScorer } from './scorers';
+import { CODE_SCORERS, createApproverExplanationScorer, createCardRubric, judgeCard } from './scorers';
 import { bootstrapMean, type Interval } from './stats';
 
 export const DATASET_NAME = 'cartkeeper-purchases';
@@ -72,6 +73,9 @@ export interface ScorerSummary extends Interval {
   /** Items that scored below 1 in any run, with the reason. */
   misses: { item: string; run: number; score: number; reason: string | null }[];
   errors: number;
+  /** Judge scorers only: how many judged cards missed each rubric criterion (across all runs). */
+  unmetCriteria?: Record<string, number>;
+  judgedCards?: number;
 }
 
 export interface ModelReport {
@@ -85,7 +89,7 @@ export interface ModelReport {
 export interface JudgeAgreement {
   agreement: number;
   n: number;
-  disagreements: { id: string; label: number; judge: number | null; why: string }[];
+  disagreements: { id: string; label: number; judge: number | null; why: string; unmet: string[] }[];
 }
 
 export interface EvalReport {
@@ -118,6 +122,8 @@ export async function runEvalSuite(opts: {
     const perScorer = new Map<string, Map<string, number[]>>();
     const misses = new Map<string, ScorerSummary['misses']>();
     const errors = new Map<string, number>();
+    const unmet = new Map<string, Record<string, number>>();
+    const judged = new Map<string, number>();
     const experimentIds: string[] = [];
     let failedItems = 0;
 
@@ -139,6 +145,13 @@ export async function runEvalSuite(opts: {
         for (const s of result.scores) {
           if (s.error) errors.set(s.scorerId, (errors.get(s.scorerId) ?? 0) + 1);
           if (s.score === null) continue;
+          const head = /^(?:Unmet: (.*)\.|All criteria met\.)/.exec(s.reason ?? '');
+          if (head) {
+            judged.set(s.scorerId, (judged.get(s.scorerId) ?? 0) + 1);
+            const counts = unmet.get(s.scorerId) ?? {};
+            for (const c of head[1]?.split(', ') ?? []) counts[c] = (counts[c] ?? 0) + 1;
+            unmet.set(s.scorerId, counts);
+          }
           const byItem = perScorer.get(s.scorerId) ?? new Map<string, number[]>();
           perScorer.set(s.scorerId, byItem);
           byItem.set(evalId, [...(byItem.get(evalId) ?? []), s.score]);
@@ -157,6 +170,7 @@ export async function runEvalSuite(opts: {
         ...bootstrapMean([...(perScorer.get(s.id)?.values() ?? [])]),
         misses: misses.get(s.id) ?? [],
         errors: errors.get(s.id) ?? 0,
+        ...(judged.has(s.id) ? { unmetCriteria: unmet.get(s.id) ?? {}, judgedCards: judged.get(s.id) } : {}),
       })),
     });
   }
@@ -172,16 +186,11 @@ export async function runEvalSuite(opts: {
 
 /** How often the rubric judge agrees with the hand labels on the calibration cards. */
 export async function judgeAgreement(judgeModel: MastraModelConfig): Promise<JudgeAgreement> {
-  const { createRubricScorer } = await import('@mastra/evals/scorers/prebuilt');
-  const { APPROVAL_CARD_RUBRIC } = await import('./scorers');
-  const rubric = createRubricScorer({ model: judgeModel, criteria: APPROVAL_CARD_RUBRIC });
-  const verdicts = await Promise.all(
-    CALIBRATION_CARDS.map(async (c) => {
-      const r = await rubric.run({ input: `Approve or reject this purchase request: ${c.request}`, output: c.card });
-      return { c, judge: typeof r.score === 'number' ? r.score : null };
-    }),
-  );
-  const disagreements = verdicts.filter((v) => v.judge !== v.c.label).map((v) => ({ id: v.c.id, label: v.c.label, judge: v.judge, why: v.c.why }));
+  const rubric = createCardRubric(judgeModel);
+  const verdicts = await Promise.all(CALIBRATION_CARDS.map(async (c) => ({ c, v: await judgeCard(rubric, c.request, c.card) })));
+  const disagreements = verdicts
+    .filter(({ c, v }) => v.score !== c.label)
+    .map(({ c, v }) => ({ id: c.id, label: c.label, judge: v.score, why: c.why, unmet: v.unmet }));
   return { agreement: (verdicts.length - disagreements.length) / verdicts.length, n: verdicts.length, disagreements };
 }
 
@@ -208,6 +217,15 @@ export function renderMarkdown(r: EvalReport): string {
     '',
   ];
   for (const m of r.models) {
+    for (const s of m.scorers.filter((x) => x.judgedCards)) {
+      const counts = Object.entries(s.unmetCriteria ?? {}).sort((a, b) => b[1] - a[1]);
+      lines.push(
+        `${m.label}, ${s.scorer}: ${s.judgedCards} cards judged; unmet criteria: ${counts.length ? counts.map(([c, n]) => `${c} ${n}`).join(', ') : 'none'}.`,
+        '',
+      );
+    }
+  }
+  for (const m of r.models) {
     const misses = m.scorers.flatMap((s) => s.misses.map((x) => ({ ...x, scorer: s.scorer })));
     lines.push(`## ${m.label}`, '', `${m.failedItems} item run(s) failed. Experiments: ${m.experimentIds.join(', ')}.`, '');
     if (!misses.length) lines.push('No misses.', '');
@@ -220,7 +238,9 @@ export function renderMarkdown(r: EvalReport): string {
   if (r.judgeAgreement) {
     const j = r.judgeAgreement;
     lines.push('## Judge agreement', '', `The rubric judge agreed with the hand labels on ${Math.round(j.agreement * j.n)} of ${j.n} calibration cards (${pct(j.agreement)}).`, '');
-    for (const d of j.disagreements) lines.push(`- ${d.id}: label ${d.label}, judge ${d.judge ?? 'error'} (${d.why})`);
+    for (const d of j.disagreements) {
+      lines.push(`- ${d.id}: label ${d.label}, judge ${d.judge ?? 'error'}${d.unmet.length ? `, unmet: ${d.unmet.join(', ')}` : ''} (${d.why})`);
+    }
     lines.push('');
   }
   return lines.join('\n');
@@ -252,6 +272,13 @@ async function main() {
   }
   const judgeLabel = arg('judge', 'opus');
   const judgeModel = noJudge ? undefined : { ...anthropicModel(MODELS[judgeLabel] ?? (judgeLabel as `${string}/${string}`)) };
+  if (process.argv.includes('--calibrate-only')) {
+    if (!judgeModel) throw new Error('--calibrate-only needs the judge; drop --no-judge');
+    const j = await judgeAgreement(judgeModel);
+    console.log(`Judge ${judgeModel.id} agreed with the hand labels on ${Math.round(j.agreement * j.n)} of ${j.n} cards.`);
+    for (const d of j.disagreements) console.log(`- ${d.id}: label ${d.label}, judge ${d.judge}, unmet: ${d.unmet.join(', ') || '-'} (${d.why})`);
+    return;
+  }
   const mastra = new Mastra({ storage: makeStorage(), logger: false });
   const report = await runEvalSuite({
     mastra,

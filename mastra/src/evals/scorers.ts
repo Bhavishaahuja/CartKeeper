@@ -235,49 +235,97 @@ export const decisionPath = createScorer<EvalInput, EvalOutput>({
 
 // --- 5. approver explanation (LLM judge) ------------------------------------------------------
 
-/** The approval card as an approver would see it. */
+const money = (x: number) => `$${pyFixedGrouped(x, 2)}`;
+const pct = (x: number) => `${Math.round(x * 1000) / 10}%`;
+const days = (n: number) => `${n} day${n === 1 ? '' : 's'}`;
+
+/**
+ * The approval card as an approver would see it. The decision comes first, and every
+ * quote for the part is listed once with the figures the rationale may cite (score,
+ * on-time and defect rates, delivery), so each claim can be checked on the card itself.
+ */
 export function approvalCard(o: EvalOutput): string | null {
   const p = o.pending;
   if (!p) return null;
-  const money = (x: number) => `$${pyFixedGrouped(x, 2)}`;
+  const { pack } = ref();
   const need = o.state.need;
-  const others = (o.state.scored_quotes ?? [])
-    .filter((q) => q.sku === p.proposal.sku && q.supplier_id !== p.proposal.supplier_id)
-    .map((q) => `${q.supplier_name}: ${money(q.unit_price)} each, ${q.lead_days}d, reliability ${q.reliability.score}, on time ${Math.round(q.reliability.on_time_rate * 100)}%`);
+  const urgency = need ? (pack.config.urgency_levels[need.urgency]?.label ?? need.urgency) : 'Urgency unknown';
+  const machine = need?.machine_id ? pack.machine(need.machine_id) : undefined;
+  const context = machine
+    ? `${machine.machine_id} (${machine.model}, ${machine.line.replaceAll('_', ' ')}): ${urgency}`
+    : `${urgency}, no machine named`;
+  const quotes = (o.state.scored_quotes ?? [])
+    .filter((q) => q.sku === p.proposal.sku)
+    .sort((a, b) => Number(b.supplier_id === p.proposal.supplier_id) - Number(a.supplier_id === p.proposal.supplier_id))
+    .map((q) => {
+      const r = q.reliability;
+      const chosen = q.supplier_id === p.proposal.supplier_id ? ' (chosen)' : '';
+      return `- ${q.supplier_name}${chosen}: ${money(q.unit_price)} each, ${days(q.lead_days)}, score ${r.score}, ${pct(r.on_time_rate)} on time, ${pct(r.defect_rate)} defects`;
+    });
   return [
-    `Approve: ${p.proposal.qty} x ${p.proposal.name} from ${p.proposal.supplier_name} for ${money(p.proposal.total)} (${p.proposal.lead_days} days).`,
-    `Request: "${o.state.raw_request}"${need?.machine_id ? ` (machine ${need.machine_id}, ${need.urgency})` : ''}.`,
-    `Why approval: ${p.policy_result.reasons.join(' ')}`,
+    `Approve ${p.proposal.qty} x ${p.proposal.name} from ${p.proposal.supplier_name} for ${money(p.proposal.total)}, arriving in ${days(p.proposal.lead_days)}.`,
+    `Why you: ${p.policy_result.reasons.join(' ')}`,
+    `Context: ${context}.`,
     `Why this supplier: ${p.proposal.rationale}`,
-    others.length ? `Other quotes: ${others.join('; ')}.` : 'No other quotes for this part.',
+    'Quotes:',
+    ...quotes,
   ].join('\n');
 }
 
+/**
+ * What a good approval card does. Revised after the first real run: the old fifth
+ * criterion ("nothing false and readable in about 10 seconds") was judged by literal
+ * word count, failed every card, and disagreed with the hand labels. It is now two
+ * checkable criteria: consistent with the card's own figures, and decision-first with
+ * nothing repeated.
+ */
 export const APPROVAL_CARD_RUBRIC = [
-  { description: 'States what is being bought, how many, from which supplier, and the total cost.' },
-  { description: 'Says why a person has to approve it (which limit or rule requires it).' },
-  { description: 'Explains why this supplier was chosen; if it is not the cheapest quote, it cites reliability or on-time evidence for both suppliers.' },
-  { description: 'Makes the urgency or business impact clear (for example, a machine is stopped), or that it is routine.' },
-  { description: 'Contains nothing false or contradictory and can be read in about 10 seconds.' },
+  { id: 'what', description: 'States what is being bought, how many, from which supplier, the total cost, and when it arrives.' },
+  { id: 'why-approval', description: 'Says why a person has to approve it (which limit or rule requires it).' },
+  { id: 'why-supplier', description: 'Explains why this supplier was chosen. If it is not the cheapest quote, the reason is backed by reliability or delivery figures shown on the card.' },
+  { id: 'urgency', description: 'Makes clear whether a machine is stopped or the purchase is routine.' },
+  { id: 'consistent', description: 'Every figure and claim agrees with the figures shown on the card. Nothing is contradictory or unsupported.' },
+  { id: 'concise', description: 'Puts the decision in the first line and contains no irrelevant or repeated detail.' },
 ];
 
+const criterionId = new Map(APPROVAL_CARD_RUBRIC.map((c) => [c.description, c.id]));
+
+export interface CardVerdict {
+  score: number | null;
+  /** Rubric criterion ids the judge marked unmet. */
+  unmet: string[];
+  reason: string;
+}
+
+export const createCardRubric = (judgeModel: MastraModelConfig) =>
+  createRubricScorer({ model: judgeModel, criteria: APPROVAL_CARD_RUBRIC });
+
+/** Judge one card. The reason starts with a machine-readable "Unmet: ..." line. */
+export async function judgeCard(rubric: ReturnType<typeof createCardRubric>, request: string, card: string): Promise<CardVerdict> {
+  const r = await rubric.run({ input: `Approve or reject this purchase request: ${request}`, output: card });
+  const analysis = r.analyzeStepResult as { criteria?: { criterion: string; satisfied: boolean }[] } | undefined;
+  const unmet = (analysis?.criteria ?? []).filter((c) => !c.satisfied).map((c) => criterionId.get(c.criterion) ?? c.criterion);
+  const head = unmet.length ? `Unmet: ${unmet.join(', ')}.` : 'All criteria met.';
+  return { score: typeof r.score === 'number' ? r.score : null, unmet, reason: `${head}\n\n${(r.reason as string) ?? ''}` };
+}
+
 export function createApproverExplanationScorer(judgeModel: MastraModelConfig) {
-  const rubric = createRubricScorer({ model: judgeModel, criteria: APPROVAL_CARD_RUBRIC });
+  const rubric = createCardRubric(judgeModel);
   return createScorer<EvalInput, EvalOutput>({
     id: 'approver-explanation',
-    description: 'LLM judge (Mastra rubric scorer): could an owner decide from this approval card in 10 seconds? Only runs on paused requests.',
+    description:
+      'LLM judge (Mastra rubric scorer): can an owner decide from this approval card at a glance? 1 only if every criterion is met. Only runs on paused requests.',
   })
     .preprocess(async ({ run }) => {
       const card = approvalCard(run.output);
       if (!card) return { judged: null };
-      const r = await rubric.run({ input: `Approve or reject this purchase request: ${EvalInputSchema.parse(run.input).raw_request}`, output: card });
-      return { judged: { score: r.score as number, reason: (r.reason as string) ?? '' } };
+      return { judged: await judgeCard(rubric, EvalInputSchema.parse(run.input).raw_request, card) };
     })
     .generateScore(({ results }) => {
-      const r = (results.preprocessStepResult as { judged: { score: number } | null }).judged;
-      return r ? r.score : notScorable('the request did not pause for approval');
+      const r = (results.preprocessStepResult as { judged: CardVerdict | null }).judged;
+      return r && r.score !== null ? r.score : notScorable('the request did not pause for approval');
     })
-    .generateReason(({ results }) => (results.preprocessStepResult as { judged: { reason: string } | null }).judged?.reason ?? 'Not scored.');
+    .generateReason(({ results }) => (results.preprocessStepResult as { judged: CardVerdict | null }).judged?.reason ?? 'Not scored.');
 }
 
 export const CODE_SCORERS = [intakeAccuracy, supplierChoiceScorer, hitlInvariantsScorer, decisionPath];

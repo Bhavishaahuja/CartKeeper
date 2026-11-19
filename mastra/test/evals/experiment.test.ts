@@ -16,7 +16,7 @@ const passEverything = () =>
   createMockModel({
     version: 'v2',
     mockText: {
-      criteria: APPROVAL_CARD_RUBRIC.map((c) => ({ criterion: c.description, satisfied: true, required: true, reasoning: 'ok' })),
+      criteria: APPROVAL_CARD_RUBRIC.map((c) => ({ criterion: c.description, satisfied: true, required: true, reasoning: 'ok' })), // passes everything
       overallAssessment: 'fine',
     },
   }) as never;
@@ -46,6 +46,9 @@ describe('runEvalSuite', () => {
     expect(get(cheapest, 'supplier-choice').mean).toBe(0);
     // The judge only scores requests that paused: the motor items.
     expect(get(oracle, 'approver-explanation').n).toBe(3);
+    // Every judged card (3 items x 2 runs) is counted, with the criteria it missed.
+    expect(get(oracle, 'approver-explanation')).toMatchObject({ judgedCards: 6, unmetCriteria: {} });
+    expect(renderMarkdown(report)).toContain('oracle, approver-explanation: 6 cards judged; unmet criteria: none.');
 
     // Experiments are stored, so Studio can show and compare them.
     const { datasets } = await mastra.datasets.list();

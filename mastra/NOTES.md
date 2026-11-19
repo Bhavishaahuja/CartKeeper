@@ -25,6 +25,32 @@ edges in Mastra worth an issue. Each rough edge has where it showed up and how t
 5. **Mastra's built-in workflow API can resume a run without the app's approval checks**
    (`/api/workflows/purchase/resume`). This needs auth or blocking before deployment.
 
+## Eval findings
+
+1. **The first judge rubric was miscalibrated, and the calibration set caught it.** On the first real run
+   (Sonnet vs Haiku, 3 runs, Opus judge), all 72 approval cards scored 0. Every card failed one criterion:
+   "contains nothing false or contradictory and can be read in about 10 seconds". The judge timed it
+   literally (about 110 words is "25 to 30 seconds") and failed 3 of the 5 good calibration cards for
+   the same reason. Agreement with the hand labels was 7/10. Because the rubric scorer is
+   all-or-nothing, one bad criterion zeroed the column. Fix: split it into "consistent with the figures
+   shown" and "decision first, nothing repeated", and report unmet counts per criterion so this shows
+   up directly next time.
+2. **The judge also found real problems with the card.**
+   - The card restated the whole request.
+   - Its "Other quotes" line repeated figures.
+   - The model's rationale cited figures the card didn't show ("half the defect rate" is true, 2.3%
+     vs 4.6%, but couldn't be checked).
+   - "Needed today" sat next to a 3-day delivery without comment.
+
+   The card now leads with what, how many, supplier, total and arrival. It lists every quote once, with
+   score, on-time and defect rates, and names the urgency in plain words.
+3. **My calibration cards had wrong figures** (Precision "95% on time", which is really 93.6%).
+   They're rewritten from the seed scores, in the production card layout.
+4. **The model results that held up on the first run:**
+   - HITL invariants, decision path and supplier choice were 100% for both models.
+   - Intake was 100% for Sonnet and 98.1% for Haiku, which sometimes reads "planned maintenance next
+     month" as urgent rather than routine.
+
 ## Mapped cleanly
 
 - `interrupt()` and `Command(resume=...)` map to `suspend()` / `resume()` with typed `suspendSchema` and
