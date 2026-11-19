@@ -1,0 +1,67 @@
+{
+  "createdAt": "2026-11-19T00:01:51.571Z",
+  "datasetItems": 30,
+  "judgeModel": null,
+  "models": [
+    {
+      "label": "haiku",
+      "runs": 1,
+      "experimentIds": [
+        "9b287919-db34-4540-8b69-772b8ebca75c"
+      ],
+      "failedItems": 0,
+      "scorers": [
+        {
+          "scorer": "intake-accuracy",
+          "mean": 0.9833333333333333,
+          "low": 0.9583333333333334,
+          "high": 1,
+          "n": 30,
+          "misses": [
+            {
+              "item": "tier-owner-grippers",
+              "run": 1,
+              "score": 0.75,
+              "reason": "Wrong: urgency."
+            },
+            {
+              "item": "reject-grippers",
+              "run": 1,
+              "score": 0.75,
+              "reason": "Wrong: urgency."
+            }
+          ],
+          "errors": 0
+        },
+        {
+          "scorer": "supplier-choice",
+          "mean": 1,
+          "low": 1,
+          "high": 1,
+          "n": 7,
+          "misses": [],
+          "errors": 0
+        },
+        {
+          "scorer": "hitl-invariants",
+          "mean": 1,
+          "low": 1,
+          "high": 1,
+          "n": 30,
+          "misses": [],
+          "errors": 0
+        },
+        {
+          "scorer": "decision-path",
+          "mean": 1,
+          "low": 1,
+          "high": 1,
+          "n": 30,
+          "misses": [],
+          "errors": 0
+        }
+      ]
+    }
+  ],
+  "judgeAgreement": null
+}

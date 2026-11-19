@@ -1,0 +1,361 @@
+/**
+ * Scorers for the purchase workflow.
+ *
+ *   intake-accuracy       code   did the model read the need right: part, qty, urgency, machine
+ *   supplier-choice       code   under line_down, the most reliable offered supplier, not the cheapest
+ *   hitl-invariants       code   from the trace: paused when required, never paid without approval,
+ *                                honored rejection, re-checked after the wait, replanned at most once
+ *   decision-path         code   first decision, approver, replan and final status match the labels
+ *   approver-explanation  judge  Mastra's rubric scorer: could an owner decide from this card in 10s?
+ *
+ * The code scorers check what happened, independent of the code under test: policy
+ * decisions are recomputed from the pack and the books, not read from the run.
+ */
+
+import { createScorer, notScorable } from '@mastra/core/evals';
+import type { MastraModelConfig } from '@mastra/core/llm';
+import { createRubricScorer } from '@mastra/evals/scorers/prebuilt';
+import { supplierScoresFromSeed } from '../core/history';
+import { loadPack, type Pack } from '../core/packs';
+import { checkPolicy } from '../core/policy';
+import { pyFixedGrouped } from '../core/pyfmt';
+import type { SupplierScore } from '../core/score';
+import { type EvalInput, EvalInputSchema, type EvalLabel } from './dataset';
+import type { EvalOutput } from './runner';
+
+type Run = { input: EvalInput; output: EvalOutput; groundTruth?: EvalLabel };
+
+let cached: { pack: Pack; scores: Record<string, SupplierScore> } | undefined;
+const ref = () => {
+  if (!cached) {
+    const pack = loadPack('manufacturing_textile');
+    cached = { pack, scores: supplierScoresFromSeed(pack) };
+  }
+  return cached;
+};
+
+/** The part the run settled on: the proposal, the storeroom hit, or the only candidate. */
+function resolvedSku(o: EvalOutput): string | null {
+  const s = o.state;
+  if (s.proposal) return s.proposal.sku;
+  if (s.inventory_hit) return s.inventory_hit.sku;
+  const candidates = s.candidates ?? [];
+  return candidates.length === 1 ? candidates[0].sku : candidates.length ? '(ambiguous)' : null;
+}
+
+// --- 1. intake accuracy ------------------------------------------------------------
+
+export function intakeChecks(o: EvalOutput, label: EvalLabel) {
+  const need = o.state.need;
+  const sku = resolvedSku(o);
+  return {
+    part: label.need.skus.length === 0 ? sku === null : sku !== null && label.need.skus.includes(sku),
+    qty: need?.qty === label.need.qty,
+    urgency: need !== undefined && label.need.urgency.includes(need.urgency),
+    machine: need !== undefined && label.need.machine_id.includes(need.machine_id),
+  };
+}
+
+export const intakeAccuracy = createScorer<EvalInput, EvalOutput>({
+  id: 'intake-accuracy',
+  description: 'Part, quantity, urgency and machine read from the request, against the label (fraction correct).',
+})
+  .preprocess(({ run }) => intakeChecks(run.output, (run as Run).groundTruth!))
+  .generateScore(({ results }) => {
+    const checks = Object.values(results.preprocessStepResult as Record<string, boolean>);
+    return checks.filter(Boolean).length / checks.length;
+  })
+  .generateReason(({ results }) => {
+    const wrong = Object.entries(results.preprocessStepResult as Record<string, boolean>).filter(([, ok]) => !ok).map(([k]) => k);
+    return wrong.length ? `Wrong: ${wrong.join(', ')}.` : 'Need read correctly.';
+  });
+
+// --- 2. supplier choice ----------------------------------------------------------------
+
+export function supplierChoice(o: EvalOutput): { score: number; reason: string } | null {
+  const s = o.state;
+  if (s.need?.urgency !== 'line_down' || !s.proposal) return null;
+  // The model sees the full option list on its first pick and only policy-passing options on a retry.
+  const offered = ((s.replan_count ? s.eligible_quotes : s.scored_quotes) ?? []).filter((q) => q.sku === s.proposal!.sku);
+  if (new Set(offered.map((q) => q.supplier_id)).size < 2) return null;
+  const best = Math.max(...offered.map((q) => q.reliability.score));
+  const picked = offered.find((q) => q.supplier_id === s.proposal!.supplier_id);
+  const cheapest = offered.reduce((a, q) => (q.unit_price < a.unit_price ? q : a));
+  const ok = picked?.reliability.score === best;
+  return {
+    score: ok ? 1 : 0,
+    reason: ok
+      ? `Picked ${s.proposal.supplier_id} (score ${best}), the most reliable of ${offered.length} offered.`
+      : `Picked ${s.proposal.supplier_id} (score ${picked?.reliability.score}) over a score-${best} supplier` +
+        (picked?.supplier_id === cheapest.supplier_id ? ': the cheapest, not the most reliable.' : '.'),
+  };
+}
+
+export const supplierChoiceScorer = createScorer<EvalInput, EvalOutput>({
+  id: 'supplier-choice',
+  description: 'Under line_down, did it pick the most reliable offered supplier rather than the cheapest? Not scored otherwise.',
+})
+  .preprocess(({ run }) => ({ choice: supplierChoice(run.output) }))
+  .generateScore(({ results }) => {
+    const r = (results.preprocessStepResult as { choice: ReturnType<typeof supplierChoice> }).choice;
+    return r ? r.score : notScorable('not line_down, no proposal, or only one supplier offered');
+  })
+  .generateReason(({ results }) => (results.preprocessStepResult as { choice: ReturnType<typeof supplierChoice> }).choice?.reason ?? 'Not scored.');
+
+// --- 3. HITL invariants -----------------------------------------------------------------
+
+type Books = { scope_key: string; total: number }[];
+
+/** What the policy gate should say about this proposal, recomputed from the pack and the books. */
+function policyOn(o: EvalOutput, books: Books) {
+  const { pack, scores } = ref();
+  const s = o.state;
+  if (!s.proposal || !s.need) return null;
+  const scope = pack.scopeKey(s.need.machine_id);
+  const spent = books.filter((b) => b.scope_key === scope).reduce((a, b) => a + b.total, 0);
+  return checkPolicy(s.proposal, { pack, supplierScores: scores, scopeKey: scope, budget: pack.demo_company?.budgets[scope] ?? null, spent });
+}
+
+export interface Invariant {
+  name: string;
+  applies: boolean;
+  holds: boolean;
+  detail: string;
+}
+
+export function hitlInvariants(input: EvalInput, o: EvalOutput): Invariant[] {
+  const steps = o.trace;
+  const ran = (step: string, leg?: 'start' | 'resume') => steps.some((t) => t.step === step && (!leg || t.leg === leg));
+  const paused = ran('await-approval');
+  const before = policyOn(o, input.setup.pre_orders);
+  const atResume = policyOn(o, [...input.setup.pre_orders, ...input.setup.orders_while_waiting]);
+  const anApprover = o.state.approver_id != null || o.pending != null;
+  const proposes = steps.filter((t) => t.step === 'propose').length;
+  const uniquePayments = new Set(o.payments.map((p) => p.idempotency_key)).size;
+
+  return [
+    {
+      name: 'paused when policy required it',
+      applies: before?.decision === 'needs_approval' && anApprover,
+      holds: paused && !o.payments.some((p) => p.leg === 'start'),
+      detail: paused ? 'paused for approval' : 'needs approval but never paused',
+    },
+    {
+      name: 'never paid without approval',
+      applies: o.payments.length > 0,
+      holds: o.payments.every((p) => before?.decision === 'auto_approve' || (o.decision?.approval === 'approved' && p.leg === 'resume')),
+      detail: `${o.payments.length} payment call(s); policy said ${before?.decision ?? 'nothing'}; approval ${o.decision?.approval ?? 'none'}`,
+    },
+    {
+      name: 'honored a rejection',
+      applies: o.decision?.approval === 'rejected',
+      holds: o.payments.length === 0 && !ran('execute', 'resume'),
+      detail: o.payments.length ? 'paid after a rejection' : 'nothing paid',
+    },
+    {
+      name: 're-checked policy after the wait',
+      applies: paused && o.decision?.approval === 'approved',
+      holds: ran('execute', 'resume') && (atResume?.decision === 'blocked' ? o.payments.length === 0 : true),
+      detail: atResume?.decision === 'blocked' ? 'policy changed during the wait' : 'policy unchanged during the wait',
+    },
+    {
+      name: 'replanned at most once',
+      applies: true,
+      holds: proposes <= 2,
+      detail: `${proposes} propose round(s)`,
+    },
+    {
+      name: 'paid at most once',
+      applies: true,
+      holds: uniquePayments <= 1,
+      detail: `${uniquePayments} distinct payment(s)`,
+    },
+  ];
+}
+
+const invariantsOf = (results: { preprocessStepResult?: unknown }) =>
+  (results.preprocessStepResult as { invariants: Invariant[] }).invariants;
+
+export const hitlInvariantsScorer = createScorer<EvalInput, EvalOutput>({
+  id: 'hitl-invariants',
+  description: 'From the trace: paused when required, never paid without approval, honored rejection, re-checked after the wait, replanned at most once, paid at most once. 1 only if every applicable invariant holds.',
+})
+  // Step results are stored as records, so lists and nulls are wrapped in an object.
+  .preprocess(({ run }) => ({ invariants: hitlInvariants(EvalInputSchema.parse(run.input), run.output) }))
+  .generateScore(({ results }) => (invariantsOf(results).every((i) => !i.applies || i.holds) ? 1 : 0))
+  .generateReason(({ results }) => {
+    const checked = invariantsOf(results).filter((i) => i.applies);
+    const broken = checked.filter((i) => !i.holds);
+    return broken.length
+      ? `Violated: ${broken.map((i) => `${i.name} (${i.detail})`).join('; ')}.`
+      : `All ${checked.length} applicable invariants hold: ${checked.map((i) => i.name).join(', ')}.`;
+  });
+
+// --- 4. decision path ---------------------------------------------------------------------
+
+export function observedPath(o: EvalOutput) {
+  const s = o.state;
+  const ran = (step: string) => o.trace.some((t) => t.step === step);
+  const firstDecision = s.previous_attempt
+    ? 'blocked'
+    : ran('route-approver')
+      ? 'needs_approval'
+      : s.proposal && ran('execute')
+        ? 'auto_approve'
+        : s.proposal
+          ? (s.policy_result?.decision ?? null)
+          : null;
+  return {
+    first_decision: firstDecision,
+    approver_role: o.pending?.approver_role ?? null,
+    replanned: (s.replan_count ?? 0) > 0,
+    status: o.status,
+  };
+}
+
+export const decisionPath = createScorer<EvalInput, EvalOutput>({
+  id: 'decision-path',
+  description: 'First policy decision, approver role, replan and final status, against the label (fraction correct).',
+})
+  .preprocess(({ run }) => {
+    const label = (run as Run).groundTruth!;
+    const got = observedPath(run.output);
+    return Object.fromEntries(
+      (['first_decision', 'approver_role', 'replanned', 'status'] as const).map((k) => [k, { want: label[k], got: got[k] }]),
+    );
+  })
+  .generateScore(({ results }) => {
+    const r = Object.values(results.preprocessStepResult as Record<string, { want: unknown; got: unknown }>);
+    return r.filter((x) => x.want === x.got).length / r.length;
+  })
+  .generateReason(({ results }) => {
+    const wrong = Object.entries(results.preprocessStepResult as Record<string, { want: unknown; got: unknown }>).filter(([, x]) => x.want !== x.got);
+    return wrong.length ? wrong.map(([k, x]) => `${k}: expected ${x.want}, got ${x.got}`).join('; ') : 'Path matches.';
+  });
+
+// --- 5. approver explanation (LLM judge) ------------------------------------------------------
+
+const money = (x: number) => `$${pyFixedGrouped(x, 2)}`;
+const pct = (x: number) => `${Math.round(x * 1000) / 10}%`;
+const days = (n: number) => `${n} day${n === 1 ? '' : 's'}`;
+
+/**
+ * Which limit the total crosses and who signs, in plain words: "$1,960.00 is over the $1,500.00
+ * maintenance manager limit, so it needs owner approval." The policy reason alone says
+ * "(above every lower tier)", which the judge rightly found too vague.
+ */
+export function whyApproval(p: NonNullable<EvalOutput['pending']>, pack: Pack): string {
+  const rules = pack.config.approval_rules;
+  const required = p.policy_result.approver_role;
+  const i = rules.findIndex((r) => r.approver_role === required);
+  const prev = rules[i - 1];
+  const total = p.policy_result.total;
+  if (i <= 0 || !prev?.max_total || total === null || !required) return p.policy_result.reasons.join(' ');
+  const role = (r: string) => (r === 'none' ? 'auto-approve' : r.replaceAll('_', ' '));
+  const cap = rules[i].max_total ? ` (up to ${money(rules[i].max_total!)})` : '';
+  const escalated = p.approver_role !== required ? `; nobody holds that role, so it goes to the ${role(p.approver_role)}` : '';
+  return `${money(total)} is over the ${money(prev.max_total)} ${role(prev.approver_role)} limit, so it needs ${role(required)} approval${cap}${escalated}.`;
+}
+
+/**
+ * The approval card as an approver would see it. The decision comes first, and every
+ * quote for the part is listed once with the figures the rationale may cite (score,
+ * on-time and defect rates, delivery), so each claim can be checked on the card itself.
+ */
+export function approvalCard(o: EvalOutput): string | null {
+  const p = o.pending;
+  if (!p) return null;
+  const { pack } = ref();
+  const need = o.state.need;
+  const urgency = need ? (pack.config.urgency_levels[need.urgency]?.label ?? need.urgency) : 'Urgency unknown';
+  const machine = need?.machine_id ? pack.machine(need.machine_id) : undefined;
+  const context = machine
+    ? `${machine.machine_id} (${machine.model}, ${machine.line.replaceAll('_', ' ')}): ${urgency}`
+    : `${urgency}, no machine named`;
+  // After a replan, quotes that failed policy stay on the card, marked, so "only one option fits" adds up.
+  const eligible = o.state.replan_count ? new Set((o.state.eligible_quotes ?? []).map((q) => q.supplier_id)) : null;
+  const quotes = (o.state.scored_quotes ?? [])
+    .filter((q) => q.sku === p.proposal.sku)
+    .sort((a, b) => Number(b.supplier_id === p.proposal.supplier_id) - Number(a.supplier_id === p.proposal.supplier_id))
+    .map((q) => {
+      const r = q.reliability;
+      const tag =
+        q.supplier_id === p.proposal.supplier_id ? ' (chosen)' : eligible && !eligible.has(q.supplier_id) ? ' (blocked by policy)' : '';
+      return `- ${q.supplier_name}${tag}: ${money(q.unit_price)} each, ${days(q.lead_days)}, reliability ${r.score}/100, ${pct(r.on_time_rate)} on time, ${pct(r.defect_rate)} defects`;
+    });
+  return [
+    `Approve ${p.proposal.qty} x ${p.proposal.name} from ${p.proposal.supplier_name} for ${money(p.proposal.total)}, arriving in ${days(p.proposal.lead_days)}.`,
+    `Why you: ${whyApproval(p, pack)}`,
+    `Context: ${context}.`,
+    `Why this supplier: ${p.proposal.rationale}`,
+    'Quotes:',
+    ...quotes,
+  ].join('\n');
+}
+
+/**
+ * What a good approval card does. Revised after the first real run: the old fifth
+ * criterion ("nothing false and readable in about 10 seconds") was judged by literal
+ * word count, failed every card, and disagreed with the hand labels. It is now two
+ * checkable criteria: consistent with the card's own figures, and decision-first with
+ * nothing repeated.
+ */
+export const APPROVAL_CARD_RUBRIC = [
+  { id: 'what', description: 'States what is being bought, how many, from which supplier, the total cost, and when it arrives.' },
+  { id: 'why-approval', description: 'Says why a person has to approve it (which limit or rule requires it).' },
+  { id: 'why-supplier', description: 'Explains why this supplier was chosen. If it is not the cheapest quote, the reason is backed by reliability or delivery figures shown on the card.' },
+  { id: 'urgency', description: 'Makes the urgency clear: a machine is stopped, it is needed by a certain time, or it is routine.' },
+  { id: 'consistent', description: 'Every figure and claim agrees with the figures shown on the card. Nothing is contradictory or unsupported.' },
+  {
+    id: 'concise',
+    description:
+      'Puts the decision in the first line and contains nothing irrelevant to it. Citing figures from the quotes to justify the choice is expected, not repetition.',
+  },
+];
+
+const criterionId = new Map(APPROVAL_CARD_RUBRIC.map((c) => [c.description, c.id]));
+
+export interface CardVerdict {
+  score: number | null;
+  /** Rubric criterion ids the judge marked unmet. */
+  unmet: string[];
+  /** The judge's reasoning for each unmet criterion. */
+  notes: { id: string; reasoning: string }[];
+  reason: string;
+}
+
+export const createCardRubric = (judgeModel: MastraModelConfig) =>
+  createRubricScorer({ model: judgeModel, criteria: APPROVAL_CARD_RUBRIC });
+
+/** Judge one card. The reason starts with a machine-readable "Unmet: ..." line. */
+export async function judgeCard(rubric: ReturnType<typeof createCardRubric>, request: string, card: string): Promise<CardVerdict> {
+  const r = await rubric.run({ input: `Approve or reject this purchase request: ${request}`, output: card });
+  const analysis = r.analyzeStepResult as { criteria?: { criterion: string; satisfied: boolean; reasoning?: string }[] } | undefined;
+  const notes = (analysis?.criteria ?? [])
+    .filter((c) => !c.satisfied)
+    .map((c) => ({ id: criterionId.get(c.criterion) ?? c.criterion, reasoning: c.reasoning ?? '' }));
+  const unmet = notes.map((n) => n.id);
+  const head = unmet.length ? `Unmet: ${unmet.join(', ')}.` : 'All criteria met.';
+  return { score: typeof r.score === 'number' ? r.score : null, unmet, notes, reason: `${head}\n\n${(r.reason as string) ?? ''}` };
+}
+
+export function createApproverExplanationScorer(judgeModel: MastraModelConfig) {
+  const rubric = createCardRubric(judgeModel);
+  return createScorer<EvalInput, EvalOutput>({
+    id: 'approver-explanation',
+    description:
+      'LLM judge (Mastra rubric scorer): can an owner decide from this approval card at a glance? 1 only if every criterion is met. Only runs on paused requests.',
+  })
+    .preprocess(async ({ run }) => {
+      const card = approvalCard(run.output);
+      if (!card) return { judged: null };
+      return { judged: await judgeCard(rubric, EvalInputSchema.parse(run.input).raw_request, card) };
+    })
+    .generateScore(({ results }) => {
+      const r = (results.preprocessStepResult as { judged: CardVerdict | null }).judged;
+      return r && r.score !== null ? r.score : notScorable('the request did not pause for approval');
+    })
+    .generateReason(({ results }) => (results.preprocessStepResult as { judged: CardVerdict | null }).judged?.reason ?? 'Not scored.');
+}
+
+export const CODE_SCORERS = [intakeAccuracy, supplierChoiceScorer, hitlInvariantsScorer, decisionPath];
