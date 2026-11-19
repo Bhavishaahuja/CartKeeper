@@ -44,9 +44,18 @@ edges in Mastra worth an issue. Each rough edge has where it showed up and how t
 
    The card now leads with what, how many, supplier, total and arrival. It lists every quote once, with
    score, on-time and defect rates, and names the urgency in plain words.
-3. **My calibration cards had wrong figures** (Precision "95% on time", which is really 93.6%).
+3. **Second calibration check: 8/10, from two more wording bugs.**
+   - "Urgency" only allowed "machine stopped" or "routine", so a card for the pack's middle level,
+     "needed this week", couldn't pass it.
+   - "Concise" penalized "repeated detail", which contradicted the supplier criterion: that one
+     requires the rationale to cite figures shown on the card.
+
+   Both are reworded. Caveat: the rubric has now been revised twice against the same 10 cards, so
+   agreement on them is optimistic. A held-out set of fresh hand-labeled cards would give an unbiased
+   figure.
+4. **My calibration cards had wrong figures** (Precision "95% on time", which is really 93.6%).
    They're rewritten from the seed scores, in the production card layout.
-4. **The model results that held up on the first run:**
+5. **The model results that held up on the first run:**
    - HITL invariants, decision path and supplier choice were 100% for both models.
    - Intake was 100% for Sonnet and 98.1% for Haiku, which sometimes reads "planned maintenance next
      month" as urgent rather than routine.

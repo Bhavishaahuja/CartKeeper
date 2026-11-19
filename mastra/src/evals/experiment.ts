@@ -89,7 +89,7 @@ export interface ModelReport {
 export interface JudgeAgreement {
   agreement: number;
   n: number;
-  disagreements: { id: string; label: number; judge: number | null; why: string; unmet: string[] }[];
+  disagreements: { id: string; label: number; judge: number | null; why: string; unmet: string[]; notes: { id: string; reasoning: string }[] }[];
 }
 
 export interface EvalReport {
@@ -190,7 +190,7 @@ export async function judgeAgreement(judgeModel: MastraModelConfig): Promise<Jud
   const verdicts = await Promise.all(CALIBRATION_CARDS.map(async (c) => ({ c, v: await judgeCard(rubric, c.request, c.card) })));
   const disagreements = verdicts
     .filter(({ c, v }) => v.score !== c.label)
-    .map(({ c, v }) => ({ id: c.id, label: c.label, judge: v.score, why: c.why, unmet: v.unmet }));
+    .map(({ c, v }) => ({ id: c.id, label: c.label, judge: v.score, why: c.why, unmet: v.unmet, notes: v.notes }));
   return { agreement: (verdicts.length - disagreements.length) / verdicts.length, n: verdicts.length, disagreements };
 }
 
@@ -276,7 +276,10 @@ async function main() {
     if (!judgeModel) throw new Error('--calibrate-only needs the judge; drop --no-judge');
     const j = await judgeAgreement(judgeModel);
     console.log(`Judge ${judgeModel.id} agreed with the hand labels on ${Math.round(j.agreement * j.n)} of ${j.n} cards.`);
-    for (const d of j.disagreements) console.log(`- ${d.id}: label ${d.label}, judge ${d.judge}, unmet: ${d.unmet.join(', ') || '-'} (${d.why})`);
+    for (const d of j.disagreements) {
+      console.log(`- ${d.id}: label ${d.label}, judge ${d.judge}, unmet: ${d.unmet.join(', ') || '-'} (${d.why})`);
+      for (const n of d.notes) console.log(`    ${n.id}: ${n.reasoning}`);
+    }
     return;
   }
   const mastra = new Mastra({ storage: makeStorage(), logger: false });
