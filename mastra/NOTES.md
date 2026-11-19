@@ -5,13 +5,14 @@ edges in Mastra worth an issue. Each rough edge has where it showed up and how t
 
 ## Rough edges
 
-1. **An agent called inside a step is missing from the trace unless you pass `tracingContext`.**
-   `agent.generate()` inside a step's `execute` produced no `agent_run` or model spans at all.
-   Nothing errors, and the step spans look complete, so it's easy to miss. Passing the step's
-   `tracingContext` to `generate()` fixes it (`src/purchase/model.ts`). The docs say the option is
-   "automatically injected", which is true for agents used as steps but not for agents called from a
-   step. Repro: a step that calls `agent.generate('hi')`, plus `TestExporter`; there are no
-   `agent_run` spans.
+Drafts with standalone repros for the first, second and fourth are in `issues/`.
+
+1. **An agent that isn't registered with Mastra is missing from the trace when called in a step.**
+   It produces no `agent_run` or model spans, with no error or warning. A registered agent fetched
+   with `mastra.getAgent()` is traced either way. My first note here blamed agents called from steps in
+   general; the minimal repro showed the cause is registration. Our tests built agents per test
+   without registering them. The app passes the step's `tracingContext` (`src/purchase/model.ts`), so
+   both cases are traced. Repro: `issues/repros/unregistered-agent-tracing.mts`.
 2. **A custom `/health` route is silently shadowed** by Mastra's built-in one, which answers
    `{"success": true}`. `registerApiRoute('/health', ...)` is accepted and never runs.
 3. **`.branch()` returns `{ [stepId]: output }`**, so every branch in this workflow is followed by a

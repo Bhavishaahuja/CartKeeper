@@ -4,6 +4,58 @@ The CartKeeper purchase graph, ported from LangGraph (Python, `../backend`) to a
 Mastra workflow in TypeScript. Same packs, same policy, same numbers. The Python
 version stays as the reference.
 
+## Built with Mastra
+
+**[Read the writeup](WRITEUP.md)**: what mapped cleanly from LangGraph, what didn't, and what the HITL
+evals caught. Draft Mastra issues with standalone repros are in [`issues/`](issues/).
+
+### The workflow
+
+```mermaid
+flowchart TD
+  A[intake<br/><i>LLM: read the request</i>] --> B[resolve-items]
+  B --> C{{parallel}}
+  C --> D[check-inventory]
+  C --> E[quote-suppliers<br/><i>foreach supplier</i>]
+  D --> F[merge-quotes]
+  E --> F
+  F -->|in stock| G[reserve-from-storeroom]
+  F -->|buy| H[score-quotes]
+  H --> I[propose-and-check<br/><i>propose → policy-check → replan</i><br/>dountil, max 2 rounds]
+  I -->|auto_approve| P[execute<br/><i>re-check policy, pay once</i>] --> Q[confirm-and-log]
+  I -->|needs_approval| R[route-approver] --> S[[await-approval<br/>suspend / resume]]
+  S -->|approved| P
+  S -->|rejected| T[close-rejected]
+  R -->|nobody to ask| U[explain-and-close]
+  I -->|blocked| U
+  I -->|nothing fits| V[close-no-match]
+```
+
+The model does exactly two things: read the request into a need (`intake`) and pick one option id
+(`propose`). Everything else is code. Prices come from the catalog, the policy gate decides, and
+`execute` re-checks policy before it pays with an idempotency key.
+
+<img src="docs/studio-workflow.png" alt="The purchase workflow in Mastra Studio: intake, resolve-items, a parallel storeroom check and supplier quote fan-out, merge-quotes, then a branch to the storeroom or the buy sub-workflow" width="560">
+
+*The sourcing half of the workflow in Mastra Studio (`npm run dev`).*
+
+### Eval results
+
+30 labeled requests, Sonnet vs Haiku, 3 runs each, Opus as judge. 95% bootstrap intervals, resampling
+items. Full report: [`evals/results/latest.md`](evals/results/latest.md).
+
+| Scorer | Sonnet | Haiku |
+| --- | --- | --- |
+| HITL invariants (from the trace) | 100% | 100% |
+| Decision path | 100% | 100% |
+| Supplier choice under line-down | 100% | 100% |
+| Intake accuracy | 100% | 97.5% [94.2, 100] |
+| Approval card meets every criterion (LLM judge) | 55.6% [33.3, 77.8] | 41.7% [19.4, 63.9] |
+
+The judge agreed with hand labels on 9 of 10 calibration cards. Most approval-card misses were
+explanations that cited internal data the approver can't see; those are fixed but not yet
+re-measured (see [the writeup](WRITEUP.md#what-the-hitl-evals-caught)).
+
 ## Status
 
 - **Phase 0 (done):** the deterministic core, with no LLM in it.
@@ -51,7 +103,7 @@ version stays as the reference.
   - `test/workflow/tracing.test.ts` checks the trace stays single across suspend and resume, also
     when the resume runs in a new Mastra instance after a restart.
   - Porting notes and rough edges for the writeup are in `NOTES.md`.
-- **Phase 5 (done, real model runs pending a key):** evals, in `src/evals/`.
+- **Phase 5 (done):** evals, in `src/evals/`. Results above; raw runs in `evals/results/`.
   - `dataset.ts` has 30 labeled requests: line-down, storeroom, approval tiers, rejection, budget
     blocks, unapproved suppliers, missing approvers, stale approvals and ambiguous requests. Each
     is labeled with the need, first policy decision, approver, replan and final status. They are
@@ -75,6 +127,8 @@ version stays as the reference.
     - deliberately broken runs trip each HITL invariant
   - `evals/pipeline-check.md` is a scripted-model run showing the report format. It is not model
     results.
+- **Phase 6 (done):** this "Built with Mastra" section, [`WRITEUP.md`](WRITEUP.md), and the draft Mastra
+  issues in [`issues/`](issues/), each checked against a standalone repro.
 
 ## Parity with Python
 
