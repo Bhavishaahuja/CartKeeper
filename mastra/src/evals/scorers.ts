@@ -283,9 +283,13 @@ export const APPROVAL_CARD_RUBRIC = [
   { id: 'what', description: 'States what is being bought, how many, from which supplier, the total cost, and when it arrives.' },
   { id: 'why-approval', description: 'Says why a person has to approve it (which limit or rule requires it).' },
   { id: 'why-supplier', description: 'Explains why this supplier was chosen. If it is not the cheapest quote, the reason is backed by reliability or delivery figures shown on the card.' },
-  { id: 'urgency', description: 'Makes clear whether a machine is stopped or the purchase is routine.' },
+  { id: 'urgency', description: 'Makes the urgency clear: a machine is stopped, it is needed by a certain time, or it is routine.' },
   { id: 'consistent', description: 'Every figure and claim agrees with the figures shown on the card. Nothing is contradictory or unsupported.' },
-  { id: 'concise', description: 'Puts the decision in the first line and contains no irrelevant or repeated detail.' },
+  {
+    id: 'concise',
+    description:
+      'Puts the decision in the first line and contains nothing irrelevant to it. Citing figures from the quotes to justify the choice is expected, not repetition.',
+  },
 ];
 
 const criterionId = new Map(APPROVAL_CARD_RUBRIC.map((c) => [c.description, c.id]));
@@ -294,6 +298,8 @@ export interface CardVerdict {
   score: number | null;
   /** Rubric criterion ids the judge marked unmet. */
   unmet: string[];
+  /** The judge's reasoning for each unmet criterion. */
+  notes: { id: string; reasoning: string }[];
   reason: string;
 }
 
@@ -303,10 +309,13 @@ export const createCardRubric = (judgeModel: MastraModelConfig) =>
 /** Judge one card. The reason starts with a machine-readable "Unmet: ..." line. */
 export async function judgeCard(rubric: ReturnType<typeof createCardRubric>, request: string, card: string): Promise<CardVerdict> {
   const r = await rubric.run({ input: `Approve or reject this purchase request: ${request}`, output: card });
-  const analysis = r.analyzeStepResult as { criteria?: { criterion: string; satisfied: boolean }[] } | undefined;
-  const unmet = (analysis?.criteria ?? []).filter((c) => !c.satisfied).map((c) => criterionId.get(c.criterion) ?? c.criterion);
+  const analysis = r.analyzeStepResult as { criteria?: { criterion: string; satisfied: boolean; reasoning?: string }[] } | undefined;
+  const notes = (analysis?.criteria ?? [])
+    .filter((c) => !c.satisfied)
+    .map((c) => ({ id: criterionId.get(c.criterion) ?? c.criterion, reasoning: c.reasoning ?? '' }));
+  const unmet = notes.map((n) => n.id);
   const head = unmet.length ? `Unmet: ${unmet.join(', ')}.` : 'All criteria met.';
-  return { score: typeof r.score === 'number' ? r.score : null, unmet, reason: `${head}\n\n${(r.reason as string) ?? ''}` };
+  return { score: typeof r.score === 'number' ? r.score : null, unmet, notes, reason: `${head}\n\n${(r.reason as string) ?? ''}` };
 }
 
 export function createApproverExplanationScorer(judgeModel: MastraModelConfig) {
