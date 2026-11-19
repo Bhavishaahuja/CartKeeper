@@ -226,7 +226,13 @@ export const PROPOSE_SYSTEM =
   'a late or defective delivery costs more than the price difference when a machine is stopped, ' +
   'so treat reliability as part of speed. If you pick a pricier option over a cheaper one, say ' +
   'why and cite both suppliers\' on-time rates or scores. Keep qty as requested unless the unit ' +
-  'makes that impossible. Explain the pick in 1 to 3 plain sentences.';
+  'makes that impossible. Explain the pick in 1 to 3 plain sentences. ' +
+  // Added after the first eval runs: rationales cited option ids, supplier ids, urgency weights
+  // and order counts that the approver never sees (src/evals, NOTES.md).
+  'The explanation is shown to the person who approves the purchase, next to each quote\'s ' +
+  'supplier name, price, delivery days, reliability score, on-time rate and defect rate. Refer to ' +
+  'suppliers by name and cite only those figures. Do not mention option ids, supplier ids, ' +
+  'urgency weights or order counts.';
 
 export const PROPOSE_RETRY_SYSTEM =
   ' Your previous pick was blocked by company policy for the reasons in previous_attempt; ' +

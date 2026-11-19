@@ -59,6 +59,22 @@ edges in Mastra worth an issue. Each rough edge has where it showed up and how t
    - HITL invariants, decision path and supplier choice were 100% for both models.
    - Intake was 100% for Sonnet and 98.1% for Haiku, which sometimes reads "planned maintenance next
      month" as urgent rather than routine.
+6. **Third run (rubric fixed, judge 9/10): the judge found product bugs.** Cards meeting every
+   criterion: Sonnet 55.6% [33.3, 77.8], Haiku 41.7% [19.4, 63.9]. Most misses were "consistent":
+   - **The rationale leaked internal data** the approver never sees: "opt-1", "SUP-02", "price
+     weight 0.9", "200 orders", "1 day average lateness". The model reads them in its context. Fix: the
+     propose prompt now says the rationale is shown to the approver and may cite only the card's
+     figures, by supplier name. This prompt diverges from the Python backend's on purpose; behavior
+     parity is unaffected.
+   - **After a replan, "only one option remains"** sat next to a card listing two quotes. The card
+     now marks quotes that failed policy as "(blocked by policy)".
+   - **"Score 93.6" next to "93.6% on time" read as a copying error.** It's a real coincidence in the
+     data, so scores now show as "reliability 93.6/100".
+   - **Haiku's urgency misread** ("next month" read as "needed this week") showed up on the card, and
+     the judge flagged the contradiction independently of the intake scorer.
+   - **The one calibration disagreement was fair:** "(above every lower tier)" doesn't name the limit.
+     The card now says "$1,680.00 is over the $1,500.00 maintenance manager limit, so it needs owner
+     approval", and says when nobody holds a role and who gets it instead.
 
 ## Mapped cleanly
 

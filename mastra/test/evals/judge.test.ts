@@ -41,15 +41,15 @@ describe('the approval card', async () => {
   });
 
   it('says why approval is needed and how urgent it is, in plain words', () => {
-    expect(card).toContain('Why you: $890.00 needs maintenance manager approval (up to $1,500.00).');
+    expect(card).toContain('Why you: $890.00 is over the $150.00 auto-approve limit, so it needs maintenance manager approval (up to $1,500.00).');
     expect(card).toContain('Context: L-03 (Picanol OMNIplus-i, line 2): Machine stopped.');
   });
 
   it('lists every quote once, chosen first, with the figures a rationale may cite', () => {
     const quotes = lines.slice(lines.indexOf('Quotes:') + 1);
     expect(quotes).toEqual([
-      '- Precision Loom Parts Co (chosen): $890.00 each, 3 days, score 93.6, 93.6% on time, 2.3% defects',
-      '- National Bearings & Belts: $860.00 each, 6 days, score 88.2, 89.1% on time, 4.6% defects',
+      '- Precision Loom Parts Co (chosen): $890.00 each, 3 days, reliability 93.6/100, 93.6% on time, 2.3% defects',
+      '- National Bearings & Belts: $860.00 each, 6 days, reliability 88.2/100, 89.1% on time, 4.6% defects',
     ]);
   });
 
@@ -93,5 +93,23 @@ describe('approver explanation', async () => {
     const r = await createApproverExplanationScorer(judge()).run({ input: item('ld-heald-l07').input as never, output: auto });
     expect(r.score).toBeUndefined();
     expect(r.notScorable).toBeTruthy();
+  });
+});
+
+describe('the card after the second real run', async () => {
+  const card = async (id: string) => approvalCard(await runEvalItem(item(id).input, oracleModel(EVAL_ITEMS)))!;
+
+  it('names the limit an owner-tier total crosses', async () => {
+    expect(await card('tier-owner-grippers')).toContain(
+      'Why you: $1,680.00 is over the $1,500.00 maintenance manager limit, so it needs owner approval.',
+    );
+  });
+
+  it('says when nobody holds the required role and who gets it instead', async () => {
+    expect(await card('escalate-to-owner')).toContain('nobody holds that role, so it goes to the owner.');
+  });
+
+  it('marks quotes that policy blocked after a replan', async () => {
+    expect(await card('block-replan-motor')).toContain('- Precision Loom Parts Co (blocked by policy): $890.00 each');
   });
 });

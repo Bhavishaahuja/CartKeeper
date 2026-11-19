@@ -240,6 +240,24 @@ const pct = (x: number) => `${Math.round(x * 1000) / 10}%`;
 const days = (n: number) => `${n} day${n === 1 ? '' : 's'}`;
 
 /**
+ * Which limit the total crosses and who signs, in plain words: "$1,960.00 is over the $1,500.00
+ * maintenance manager limit, so it needs owner approval." The policy reason alone says
+ * "(above every lower tier)", which the judge rightly found too vague.
+ */
+export function whyApproval(p: NonNullable<EvalOutput['pending']>, pack: Pack): string {
+  const rules = pack.config.approval_rules;
+  const required = p.policy_result.approver_role;
+  const i = rules.findIndex((r) => r.approver_role === required);
+  const prev = rules[i - 1];
+  const total = p.policy_result.total;
+  if (i <= 0 || !prev?.max_total || total === null || !required) return p.policy_result.reasons.join(' ');
+  const role = (r: string) => (r === 'none' ? 'auto-approve' : r.replaceAll('_', ' '));
+  const cap = rules[i].max_total ? ` (up to ${money(rules[i].max_total!)})` : '';
+  const escalated = p.approver_role !== required ? `; nobody holds that role, so it goes to the ${role(p.approver_role)}` : '';
+  return `${money(total)} is over the ${money(prev.max_total)} ${role(prev.approver_role)} limit, so it needs ${role(required)} approval${cap}${escalated}.`;
+}
+
+/**
  * The approval card as an approver would see it. The decision comes first, and every
  * quote for the part is listed once with the figures the rationale may cite (score,
  * on-time and defect rates, delivery), so each claim can be checked on the card itself.
@@ -254,17 +272,20 @@ export function approvalCard(o: EvalOutput): string | null {
   const context = machine
     ? `${machine.machine_id} (${machine.model}, ${machine.line.replaceAll('_', ' ')}): ${urgency}`
     : `${urgency}, no machine named`;
+  // After a replan, quotes that failed policy stay on the card, marked, so "only one option fits" adds up.
+  const eligible = o.state.replan_count ? new Set((o.state.eligible_quotes ?? []).map((q) => q.supplier_id)) : null;
   const quotes = (o.state.scored_quotes ?? [])
     .filter((q) => q.sku === p.proposal.sku)
     .sort((a, b) => Number(b.supplier_id === p.proposal.supplier_id) - Number(a.supplier_id === p.proposal.supplier_id))
     .map((q) => {
       const r = q.reliability;
-      const chosen = q.supplier_id === p.proposal.supplier_id ? ' (chosen)' : '';
-      return `- ${q.supplier_name}${chosen}: ${money(q.unit_price)} each, ${days(q.lead_days)}, score ${r.score}, ${pct(r.on_time_rate)} on time, ${pct(r.defect_rate)} defects`;
+      const tag =
+        q.supplier_id === p.proposal.supplier_id ? ' (chosen)' : eligible && !eligible.has(q.supplier_id) ? ' (blocked by policy)' : '';
+      return `- ${q.supplier_name}${tag}: ${money(q.unit_price)} each, ${days(q.lead_days)}, reliability ${r.score}/100, ${pct(r.on_time_rate)} on time, ${pct(r.defect_rate)} defects`;
     });
   return [
     `Approve ${p.proposal.qty} x ${p.proposal.name} from ${p.proposal.supplier_name} for ${money(p.proposal.total)}, arriving in ${days(p.proposal.lead_days)}.`,
-    `Why you: ${p.policy_result.reasons.join(' ')}`,
+    `Why you: ${whyApproval(p, pack)}`,
     `Context: ${context}.`,
     `Why this supplier: ${p.proposal.rationale}`,
     'Quotes:',
